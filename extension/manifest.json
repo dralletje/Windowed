@@ -1,0 +1,35 @@
+{
+  "permissions": [
+    "tabs","<all_urls>"
+  ],
+  "developer": {
+    "name": "Michiel Dral",
+    "url": "https://dral.eu/"
+  },
+  "content_scripts": [
+    {
+      "run_at": "document_start",
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "js": ["Javascript/Content.js"]
+    }
+  ],
+  "background": {
+    "scripts": [
+      "Javascript/browser-polyfill.min.js",
+      "Javascript/Background.js"
+    ]
+  },
+  "description": "Changes fullscreen buttons to go into a popup",
+  "icons": {
+    "16": "Icons/Icon_16.png",
+    "32": "Icons/Icon_32.png",
+    "64": "Icons/Icon_64.png",
+    "128": "Icons/Icon_128.png"
+  },
+  "manifest_version": 2,
+  "name": "Windowed",
+  "version": "2"
+}
