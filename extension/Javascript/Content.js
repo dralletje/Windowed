@@ -22,6 +22,9 @@ elt.innerHTML = `
   const exitFullscreen = function() {
     if (document.webkitIsFullScreen) {
       window.postMessage({ type: "exit_fullscreen" }, "*");
+      if (window.parent) {
+        window.parent.postMessage({ type: "exit_fullscreen_iframe" }, "*");
+      }
       set_fullscreen_element(null);
     }
   }
@@ -37,6 +40,21 @@ elt.innerHTML = `
     element.classList.add('${fullscreen_id_class}');
     set_fullscreen_element(element);
     window.postMessage({ type: "enter_fullscreen" }, "*");
+    if (window.parent) {
+      window.parent.postMessage({ type: "enter_fullscreen_iframe" }, "*");
+    }
+  }
+
+  window.onmessage = (message) => {
+    const frame = [...document.querySelectorAll('iframe')].find(x => x.contentWindow === message.source);
+    if (frame && message.data) {
+      if (message.data.type === 'enter_fullscreen_iframe') {
+        frame.webkitRequestFullscreen();
+      }
+      if (message.data.type === 'exit_fullscreen_iframe') {
+        document.webkitExitFullscreen();
+      }
+    }
   }
 
   Element.prototype.webkitRequestFullscreen = requestFullscreen;
@@ -59,7 +77,7 @@ let create_style_rule = () => {
   let styleSheet = styleEl.sheet;
 
   styleSheet.insertRule(`
-    .${fullscreen_id_class} {
+    .${body_class} .${fullscreen_id_class} {
       position: fixed !important;
       top: 0 !important;
       bottom: 0 !important;
@@ -69,13 +87,29 @@ let create_style_rule = () => {
     }
   `)
   styleSheet.insertRule(`
-    .${fullscreen_parent} {
+    .${body_class} .${fullscreen_parent} {
+      /* This thing is css black magic */
+      all: initial;
       z-index: ${max_z_index} !important;
+
+      /* Debugging */
+      background-color: rgba(0,0,0,.1) !important;
+    }
+  `)
+  styleSheet.insertRule(`
+    /* Not sure if this is necessary, but putting it here just in case */
+    .${body_class} .${fullscreen_parent}::before,
+    .${body_class} .${fullscreen_parent}::after {
+      display: none;
     }
   `)
   styleSheet.insertRule(`
     .${body_class} {
+      /* Prevent scrolling */
       overflow: hidden !important;
+
+      /* For debugging, leaving this just in here so I see when something goes wrong */
+      background-color: rgb(113, 0, 180);
     }
   `)
 }
@@ -92,6 +126,14 @@ const send_event = (element, type) => {
   element.dispatchEvent(event)
 }
 
+const parent_elements = function*(element) {
+  let el = element.parentElement;
+  while (el) {
+    yield el;
+    el = el.parentELement;
+  }
+}
+
 window.addEventListener("message", function(event) {
   // We only accept messages from ourselves
   if (event.source != window)
@@ -102,11 +144,8 @@ window.addEventListener("message", function(event) {
     create_style_rule();
     const element = document.querySelector(`.${fullscreen_id_class}`);
 
-    // Add no scroll to the body
-    document.body.classList.add(body_class);
-
     // Add fullscreen class to every parent of our fullscreen element
-    let el = element;
+    let el = element.parentElement;
     while (el) {
       el.classList.add(fullscreen_parent);
       el = el.parentElement;
@@ -116,19 +155,22 @@ window.addEventListener("message", function(event) {
     send_event(element, 'webkitfullscreenchange');
     send_event(window, 'resize');
 
+    // Add no scroll to the body and let everything kick in
+    document.body.classList.add(body_class);
+
     // Send popup command to extension
     chrome.runtime.sendMessage({ type: 'please_make_me_a_popup' });
   }
 
   // Going OUT fullscreen
   if (event.data.type && (event.data.type == "exit_fullscreen")) {
-    // Remove no scroll from body
+    // Remove no scroll from body (and remove all styles)
     document.body.classList.remove(body_class);
 
     // Remove fullscreen class... from everything
-    document.querySelectorAll(`.${fullscreen_parent}`).forEach(element => {
+    for (let element of document.querySelectorAll(`.${fullscreen_parent}`)) {
       element.classList.remove(fullscreen_parent);
-    });
+    }
 
     const fullscreen_element = document.querySelector(`.${fullscreen_id_class}`);
     fullscreen_element.classList.remove(fullscreen_id_class);

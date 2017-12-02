@@ -13,7 +13,8 @@
         "http://*/*",
         "https://*/*"
       ],
-      "js": ["Javascript/Content.js"]
+      "js": ["Javascript/Content.js"],
+      "all_frames": true
     }
   ],
   "background": {
