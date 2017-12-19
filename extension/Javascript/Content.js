@@ -3,9 +3,16 @@ const fullscreen_parent = `${fullscreen_id_class}-parent`;
 const body_class = `${fullscreen_id_class}-body`;
 const max_z_index = '2147483647';
 
+// Aliasses for different browsers (rest of aliasses are in the inserted script)
+let fullscreenchange_aliasses = ["fullscreenchange", "webkitfullscreenchange", "mozfullscreenchange", "MSFullscreenChange"];
+
 // Insert requestFullScreen mock
-var elt = document.createElement("script");
-elt.innerHTML = `
+const code_to_insert_in_page = `{
+  // Alliases for different browsers
+  let requestFullscreen_aliasses = ["requestFullscreen", "mozRequestFullScreen", "webkitRequestFullscreen", "msRequestFullscreen"];
+  let exitFullscreen_aliasses = ["exitFullscreen", "webkitExitFullscreen", "webkitCancelFullScreen", "mozCancelFullScreen", "msExitFullscreen"];
+  let fullscreenelement_aliasses = ["fullscreenElement", "webkitFullscreenElement", "mozFullscreenElement", "mozFullScreenElement", "msFullscreenElement", "webkitCurrentFullScreenElement"];
+
   let overwrite = (object, property, value) => {
     Object.defineProperty(object, property, {
       value: value,
@@ -14,17 +21,20 @@ elt.innerHTML = `
   }
 
   const set_fullscreen_element = (element = null) => {
-    overwrite(document, 'webkitIsFullScreen', element != null);
-    overwrite(document, 'webkitCurrentFullScreenElement', element);
-    overwrite(document, 'webkitFullscreenElement', element)
+    overwrite(document, 'webkitIsFullScreen', element != null); // Old old old
+    for (let fullscreenelement_alias of fullscreenelement_aliasses) {
+      overwrite(document, fullscreenelement_alias, element);
+    }
   }
 
   const exitFullscreen = function() {
-    if (document.webkitIsFullScreen) {
-      window.postMessage({ type: "exit_fullscreen" }, "*");
-      if (window.parent) {
-        window.parent.postMessage({ type: "exit_fullscreen_iframe" }, "*");
+    if (document.fullscreenElement != null) {
+      // If the fullscreen element is a frame, tell it to exit fullscreen too
+      if (typeof document.fullscreenElement.postMessage === 'function') {
+        document.fullscreenElement.postMessage.sendMessage({ type: "exit_fullscreen_iframe" });
       }
+
+      window.postMessage({ type: "exit_fullscreen" }, "*");
       set_fullscreen_element(null);
     }
   }
@@ -49,20 +59,29 @@ elt.innerHTML = `
     const frame = [...document.querySelectorAll('iframe')].find(x => x.contentWindow === message.source);
     if (frame && message.data) {
       if (message.data.type === 'enter_fullscreen_iframe') {
-        frame.webkitRequestFullscreen();
+        requestFullscreen.call(frame); // Call my requestFullscreen on the element
       }
       if (message.data.type === 'exit_fullscreen_iframe') {
-        document.webkitExitFullscreen();
+        exitFullscreen.call(document); // Call my exitFullscreen on the document
       }
     }
   }
 
-  Element.prototype.webkitRequestFullscreen = requestFullscreen;
-  Element.prototype.webkitRequestFullScreen = requestFullscreen;
+  requestFullscreen_aliasses.forEach(requestFullscreenAlias => {
+    if (typeof Element.prototype[requestFullscreenAlias] === 'function') {
+      Element.prototype[requestFullscreenAlias] = requestFullscreen;
+    }
+  });
 
-  Document.prototype.webkitExitFullscreen = exitFullscreen;
-  Document.prototype.webkitCancelFullScreen = exitFullscreen;
-`;
+  exitFullscreen_aliasses.forEach(exitFullscreenAlias => {
+    if (typeof Document.prototype[exitFullscreenAlias] === 'function') {
+      Document.prototype[exitFullscreenAlias] = exitFullscreen;
+    }
+  });
+}`;
+
+let elt = document.createElement("script");
+elt.innerHTML = code_to_insert_in_page;
 document.documentElement.appendChild(elt);
 
 let has_style_created = false;
@@ -123,7 +142,7 @@ const send_event = (element, type) => {
   if (element[`on${type}`]) {
     element[`on${type}`](event);
   }
-  element.dispatchEvent(event)
+  element.dispatchEvent(event);
 }
 
 const parent_elements = function*(element) {
@@ -132,6 +151,12 @@ const parent_elements = function*(element) {
     yield el;
     el = el.parentELement;
   }
+}
+
+  for (let fullscreenchange of fullscreenchange_aliasses) {
+    send_event(element, fullscreenchange);
+  }
+  send_event(window, 'resize');
 }
 
 window.addEventListener("message", function(event) {
@@ -152,8 +177,7 @@ window.addEventListener("message", function(event) {
     }
 
     // Send events
-    send_event(element, 'webkitfullscreenchange');
-    send_event(window, 'resize');
+    send_fullscreen_events(element);
 
     // Add no scroll to the body and let everything kick in
     document.body.classList.add(body_class);
@@ -175,9 +199,8 @@ window.addEventListener("message", function(event) {
     const fullscreen_element = document.querySelector(`.${fullscreen_id_class}`);
     fullscreen_element.classList.remove(fullscreen_id_class);
 
-    send_event(fullscreen_element, 'webkitfullscreenchange');
-    send_event(window, 'resize');
-
     chrome.runtime.sendMessage({ type: 'please_make_me_a_tab_again' });
+    // Send events
+    send_fullscreen_events(element);
   }
 });
