@@ -49,10 +49,9 @@ const code_to_insert_in_page = `{
     const element = this;
     element.classList.add('${fullscreen_id_class}');
     set_fullscreen_element(element);
+
+    // Tell extension code (outside of this block) to go into fullscreen
     window.postMessage({ type: "enter_fullscreen" }, "*");
-    if (window.parent) {
-      window.parent.postMessage({ type: "enter_fullscreen_iframe" }, "*");
-    }
   }
 
   window.onmessage = (message) => {
@@ -83,6 +82,13 @@ const code_to_insert_in_page = `{
 let elt = document.createElement("script");
 elt.innerHTML = code_to_insert_in_page;
 document.documentElement.appendChild(elt);
+
+// console.log('Runs in proper sandbox:', document.documentElement.constructor === HTMLHtmlElement);
+// NOTE On chrome, extensions run in a proper sandbox (above will log true),
+// meaning that you can't get access to the actual prototype-s of the Document and Elements-s,
+// hence the need for the ugly script insert above.
+// On Firefox however, this is not the case, and I might (because firefox screws me with CSP)
+// need to use this quirk to work on all pages
 
 let has_style_created = false;
 let create_style_rule = () => {
@@ -153,6 +159,7 @@ const parent_elements = function*(element) {
   }
 }
 
+const send_fullscreen_events = (element) => {
   for (let fullscreenchange of fullscreenchange_aliasses) {
     send_event(element, fullscreenchange);
   }
@@ -166,14 +173,20 @@ window.addEventListener("message", function(event) {
 
   // Going INTO fullscreen
   if (event.data.type && (event.data.type == "enter_fullscreen")) {
+    if (window.parent !== window) {
+      // Ask parent-windowed code to become fullscreen too
+      window.parent.postMessage({ type: "enter_fullscreen_iframe" }, "*");
+    } else {
+      // Send popup command to extension
+      chrome.runtime.sendMessage({ type: 'please_make_me_a_popup' });
+    }
+
     create_style_rule();
     const element = document.querySelector(`.${fullscreen_id_class}`);
 
     // Add fullscreen class to every parent of our fullscreen element
-    let el = element.parentElement;
-    while (el) {
-      el.classList.add(fullscreen_parent);
-      el = el.parentElement;
+    for (let parent_element of parent_elements(element)) {
+      parent_element.classList.add(fullscreen_parent);
     }
 
     // Send events
@@ -181,13 +194,18 @@ window.addEventListener("message", function(event) {
 
     // Add no scroll to the body and let everything kick in
     document.body.classList.add(body_class);
-
-    // Send popup command to extension
-    chrome.runtime.sendMessage({ type: 'please_make_me_a_popup' });
   }
 
   // Going OUT fullscreen
   if (event.data.type && (event.data.type == "exit_fullscreen")) {
+    // If we are a frame, tell the parent frame to exit fullscreen
+    // If we aren't (we are a popup), tell the background page to make me tab again
+    if (window.parent !== window) {
+      window.parent.postMessage({ type: "exit_fullscreen_iframe" }, "*");
+    } else {
+      chrome.runtime.sendMessage({ type: 'please_make_me_a_tab_again' });
+    }
+
     // Remove no scroll from body (and remove all styles)
     document.body.classList.remove(body_class);
 
@@ -199,7 +217,6 @@ window.addEventListener("message", function(event) {
     const fullscreen_element = document.querySelector(`.${fullscreen_id_class}`);
     fullscreen_element.classList.remove(fullscreen_id_class);
 
-    chrome.runtime.sendMessage({ type: 'please_make_me_a_tab_again' });
     // Send events
     send_fullscreen_events(element);
   }
