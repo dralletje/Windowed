@@ -9,7 +9,7 @@ let fullscreenchange_aliasses = ["fullscreenchange", "webkitfullscreenchange", "
 // Insert requestFullScreen mock
 const code_to_insert_in_page = `{
   // Alliases for different browsers
-  let requestFullscreen_aliasses = ["requestFullscreen", "mozRequestFullScreen", "webkitRequestFullscreen", "msRequestFullscreen"];
+  let requestFullscreen_aliasses = ["requestFullscreen", "mozRequestFullScreen", "webkitRequestFullscreen", "webkitRequestFullScreen", "msRequestFullscreen"];
   let exitFullscreen_aliasses = ["exitFullscreen", "webkitExitFullscreen", "webkitCancelFullScreen", "mozCancelFullScreen", "msExitFullscreen"];
   let fullscreenelement_aliasses = ["fullscreenElement", "webkitFullscreenElement", "mozFullscreenElement", "mozFullScreenElement", "msFullscreenElement", "webkitCurrentFullScreenElement"];
 
