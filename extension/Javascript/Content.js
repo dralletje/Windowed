@@ -173,16 +173,28 @@ window.addEventListener("message", function(event) {
 
   // Going INTO fullscreen
   if (event.data.type && (event.data.type == "enter_fullscreen")) {
+    create_style_rule();
+    let element = document.querySelector(`.${fullscreen_id_class}`);
+
     if (window.parent !== window) {
       // Ask parent-windowed code to become fullscreen too
       window.parent.postMessage({ type: "enter_fullscreen_iframe" }, "*");
     } else {
       // Send popup command to extension
-      chrome.runtime.sendMessage({ type: 'please_make_me_a_popup' });
-    }
+      let { top, left } = element.getBoundingClientRect();
+      let menubar_size = window.outerHeight - window.innerHeight; // Asumme there is just header, no browser footer
+      let rect = element.getBoundingClientRect();
 
-    create_style_rule();
-    const element = document.querySelector(`.${fullscreen_id_class}`);
+      chrome.runtime.sendMessage({
+        type: 'please_make_me_a_popup',
+        position: {
+          height: rect.height,
+          width: rect.width,
+          top: rect.top + menubar_size,
+          left: rect.left,
+        },
+      });
+    }
 
     // Add fullscreen class to every parent of our fullscreen element
     for (let parent_element of parent_elements(element)) {
@@ -198,14 +210,6 @@ window.addEventListener("message", function(event) {
 
   // Going OUT fullscreen
   if (event.data.type && (event.data.type == "exit_fullscreen")) {
-    // If we are a frame, tell the parent frame to exit fullscreen
-    // If we aren't (we are a popup), tell the background page to make me tab again
-    if (window.parent !== window) {
-      window.parent.postMessage({ type: "exit_fullscreen_iframe" }, "*");
-    } else {
-      chrome.runtime.sendMessage({ type: 'please_make_me_a_tab_again' });
-    }
-
     // Remove no scroll from body (and remove all styles)
     document.body.classList.remove(body_class);
 
@@ -215,9 +219,15 @@ window.addEventListener("message", function(event) {
     }
 
     const fullscreen_element = document.querySelector(`.${fullscreen_id_class}`);
+    send_fullscreen_events(fullscreen_element);
     fullscreen_element.classList.remove(fullscreen_id_class);
 
-    // Send events
-    send_fullscreen_events(element);
+    // If we are a frame, tell the parent frame to exit fullscreen
+    // If we aren't (we are a popup), tell the background page to make me tab again
+    if (window.parent !== window) {
+      window.parent.postMessage({ type: "exit_fullscreen_iframe" }, "*");
+    } else {
+      chrome.runtime.sendMessage({ type: 'please_make_me_a_tab_again' });
+    }
   }
 });

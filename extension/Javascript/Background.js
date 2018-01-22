@@ -21,14 +21,33 @@ const get_fallback_window = async (windowId) => {
 	}
 }
 
+let get_window = async (id) => {
+	return new Promise((resolve) => {
+		chrome.windows.get(id, window => {
+			resolve(window);
+		});
+	});
+}
+
+// TODO Instead of using this static height, I can maybe "ping" the page I'm popup-izing
+// after it is done becoming a popup: then it can figure out it's position itself
+// (and check the size of it's current header itself)
+const Chrome_Popup_Menubar_Height = 22; // Do `window.outerHeight - window.innerHeight` in a popup tab
+
 chrome.runtime.onMessage.addListener(async (request, sender) => {
 	/*
 		Detatch the current tab and put it into a standalone popup window
 	*/
 	if (request.type === 'please_make_me_a_popup') {
+		let { left: screenLeft, top: screenTop } = await get_window(sender.tab.windowId);
+		let frame = request.position;
 		const created_window = await browser.windows.create({
 			tabId: sender.tab.id,
 			type: 'popup',
+			left: Math.round(screenLeft + frame.left),
+			top: Math.round(screenTop + frame.top - Chrome_Popup_Menubar_Height),
+			width: Math.round(frame.width),
+			height: Math.round(frame.height + Chrome_Popup_Menubar_Height),
 		});
 	}
 
