@@ -134,7 +134,7 @@ let create_style_rule = () => {
       overflow: hidden !important;
 
       /* For debugging, leaving this just in here so I see when something goes wrong */
-      background-color: rgb(113, 0, 180);
+      /* background-color: rgb(113, 0, 180); */
     }
   `)
 }
@@ -155,7 +155,7 @@ const parent_elements = function*(element) {
   let el = element.parentElement;
   while (el) {
     yield el;
-    el = el.parentELement;
+    el = el.parentElement;
   }
 }
 
