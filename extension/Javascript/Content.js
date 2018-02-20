@@ -185,13 +185,17 @@ window.addEventListener("message", function(event) {
       let menubar_size = window.outerHeight - window.innerHeight; // Asumme there is just header, no browser footer
       let rect = element.getBoundingClientRect();
 
+      // rect.width
+      let ratio_width = Math.min(rect.height / 9 * 16, rect.width) // 16:9
+      let width_diff = rect.width - ratio_width;
+
       chrome.runtime.sendMessage({
         type: 'please_make_me_a_popup',
         position: {
           height: rect.height,
-          width: rect.width,
+          width: ratio_width,
           top: rect.top + menubar_size,
-          left: rect.left,
+          left: rect.left + (width_diff / 2),
         },
       });
     }
