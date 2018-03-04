@@ -1,6 +1,9 @@
 const fullscreen_id_class = `--Windowed-long-id-that-does-not-conflict--`;
 const fullscreen_parent = `${fullscreen_id_class}-parent`;
 const body_class = `${fullscreen_id_class}-body`;
+const transition_class = `${fullscreen_id_class}-transition`;
+const transition_transition_class = `${fullscreen_id_class}-transition-transition`;
+
 const max_z_index = '2147483647';
 
 // Aliasses for different browsers (rest of aliasses are in the inserted script)
@@ -90,6 +93,12 @@ document.documentElement.appendChild(elt);
 // On Firefox however, this is not the case, and I might (because firefox screws me with CSP)
 // need to use this quirk to work on all pages
 
+let delay = (ms) => {
+  return new Promise((resolve) => {
+    setTimeout(() => resolve(), ms);
+  });
+}
+
 let has_style_created = false;
 let create_style_rule = () => {
   if (has_style_created) {
@@ -97,11 +106,7 @@ let create_style_rule = () => {
   }
   has_style_created = true;
 
-  let styleEl = document.createElement('style');
-  document.head.appendChild(styleEl);
-  let styleSheet = styleEl.sheet;
-
-  styleSheet.insertRule(`
+  let css = `
     .${body_class} .${fullscreen_id_class} {
       position: fixed !important;
       top: 0 !important;
@@ -110,8 +115,7 @@ let create_style_rule = () => {
       left: 0 !important;
       z-index: ${max_z_index} !important;
     }
-  `)
-  styleSheet.insertRule(`
+
     .${body_class} .${fullscreen_parent} {
       /* This thing is css black magic */
       all: initial;
@@ -120,15 +124,13 @@ let create_style_rule = () => {
       /* Debugging */
       background-color: rgba(0,0,0,.1) !important;
     }
-  `)
-  styleSheet.insertRule(`
+
     /* Not sure if this is necessary, but putting it here just in case */
     .${body_class} .${fullscreen_parent}::before,
     .${body_class} .${fullscreen_parent}::after {
       display: none;
     }
-  `)
-  styleSheet.insertRule(`
+
     .${body_class} {
       /* Prevent scrolling */
       overflow: hidden !important;
@@ -136,7 +138,24 @@ let create_style_rule = () => {
       /* For debugging, leaving this just in here so I see when something goes wrong */
       /* background-color: rgb(113, 0, 180); */
     }
-  `)
+
+    .${transition_transition_class} {
+      background-color: black !important;
+    }
+
+    .${transition_transition_class} body {
+      /* transition: opacity .5s; */
+      opacity: 1;
+    }
+
+    .${transition_class} body {
+      opacity: 0 !important;
+    }
+  `;
+
+  let styleEl = document.createElement('style');
+  document.head.appendChild(styleEl);
+  styleEl.appendChild(document.createTextNode(css));
 }
 
 const send_event = (element, type) => {
@@ -166,7 +185,15 @@ const send_fullscreen_events = (element) => {
   send_event(window, 'resize');
 }
 
-window.addEventListener("message", function(event) {
+let send_chrome_message = (message) => {
+  return new Promise((resolve) => {
+    chrome.runtime.sendMessage(message, () => {
+      resolve();
+    });
+  });
+}
+
+window.addEventListener("message", async (event) => {
   // We only accept messages from ourselves
   if (event.source != window)
       return;
@@ -189,7 +216,11 @@ window.addEventListener("message", function(event) {
       let ratio_width = Math.min(rect.height / 9 * 16, rect.width) // 16:9
       let width_diff = rect.width - ratio_width;
 
-      chrome.runtime.sendMessage({
+      document.documentElement.classList.add(transition_class);
+      document.documentElement.classList.add(transition_transition_class);
+
+      await delay(10);
+      await send_chrome_message({
         type: 'please_make_me_a_popup',
         position: {
           height: rect.height,
@@ -198,6 +229,7 @@ window.addEventListener("message", function(event) {
           left: rect.left + (width_diff / 2),
         },
       });
+      await delay(10);
     }
 
     // Add fullscreen class to every parent of our fullscreen element
@@ -210,10 +242,19 @@ window.addEventListener("message", function(event) {
 
     // Add no scroll to the body and let everything kick in
     document.body.classList.add(body_class);
+    document.documentElement.classList.remove(transition_class);
+
+    await delay(500);
+    document.documentElement.classList.remove(transition_transition_class);
+
   }
 
   // Going OUT fullscreen
   if (event.data.type && (event.data.type == "exit_fullscreen")) {
+    // Hide everything for a smooth transition
+    document.documentElement.classList.add(transition_class);
+    document.documentElement.classList.add(transition_transition_class);
+
     // Remove no scroll from body (and remove all styles)
     document.body.classList.remove(body_class);
 
@@ -231,7 +272,13 @@ window.addEventListener("message", function(event) {
     if (window.parent !== window) {
       window.parent.postMessage({ type: "exit_fullscreen_iframe" }, "*");
     } else {
-      chrome.runtime.sendMessage({ type: 'please_make_me_a_tab_again' });
+      await delay(10);
+      await send_chrome_message({ type: 'please_make_me_a_tab_again' });
+      await delay(500);
     }
+
+    document.documentElement.classList.remove(transition_class);
+    await delay(2000);
+    document.documentElement.classList.remove(transition_transition_class);
   }
 });

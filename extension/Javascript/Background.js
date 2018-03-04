@@ -34,7 +34,7 @@ let get_window = async (id) => {
 // (and check the size of it's current header itself)
 const Chrome_Popup_Menubar_Height = 22; // Do `window.outerHeight - window.innerHeight` in a popup tab
 
-chrome.runtime.onMessage.addListener(async (request, sender) => {
+chrome.runtime.onMessage.addListener(async (request, sender, response_fn) => {
 	/*
 		Detatch the current tab and put it into a standalone popup window
 	*/
@@ -49,6 +49,8 @@ chrome.runtime.onMessage.addListener(async (request, sender) => {
 			width: Math.round(frame.width),
 			height: Math.round(frame.height + Chrome_Popup_Menubar_Height),
 		});
+
+		return response_fn();
 	}
 
 	/*
@@ -73,6 +75,7 @@ chrome.runtime.onMessage.addListener(async (request, sender) => {
 				type: 'normal',
 			});
 		}
+		return response_fn();
 	}
 });
 
