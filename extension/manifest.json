@@ -1,11 +1,16 @@
 {
-  "permissions": [
-    "tabs","<all_urls>"
-  ],
+  "name": "Windowed - floating Youtube/every website",
+  "short_name": "Windowed",
+  "description": "Changes fullscreen buttons to go into a popup. Works for *every website* that uses fullscreen, including Youtube, Vimeo, Netflix, Twitch",
   "developer": {
     "name": "Michiel Dral",
     "url": "https://dral.eu/"
   },
+  "version": "9",
+  "manifest_version": 2,
+  "permissions": [
+    "tabs","<all_urls>"
+  ],
   "content_scripts": [
     {
       "run_at": "document_start",
@@ -23,14 +28,10 @@
       "Javascript/Background.js"
     ]
   },
-  "description": "Changes fullscreen buttons to go into a popup",
   "icons": {
     "16": "Icons/Icon_16.png",
     "32": "Icons/Icon_32.png",
     "64": "Icons/Icon_64.png",
     "128": "Icons/Icon_128.png"
-  },
-  "manifest_version": 2,
-  "name": "Windowed",
-  "version": "8"
+  }
 }
