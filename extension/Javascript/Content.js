@@ -139,6 +139,7 @@ let create_style_rule = () => {
       /* background-color: rgb(113, 0, 180); */
     }
 
+    /*
     .${transition_transition_class} {
       background-color: black !important;
     }
@@ -151,6 +152,7 @@ let create_style_rule = () => {
     .${transition_class} body {
       opacity: 0 !important;
     }
+    */
   `;
 
   let styleEl = document.createElement('style');
