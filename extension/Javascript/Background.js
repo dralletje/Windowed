@@ -39,6 +39,8 @@ chrome.runtime.onMessage.addListener(async (request, sender, response_fn) => {
 		Detatch the current tab and put it into a standalone popup window
 	*/
 	if (request.type === 'please_make_me_a_popup') {
+		// TODO Save windowId and index inside that window,
+		// so when you "pop" it back, it will go where you opened it
 		let { left: screenLeft, top: screenTop } = await get_window(sender.tab.windowId);
 		let frame = request.position;
 		const created_window = await browser.windows.create({
@@ -49,7 +51,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, response_fn) => {
 			width: Math.round(frame.width),
 			height: Math.round(frame.height + Chrome_Popup_Menubar_Height),
 		});
-
+		// created_window.setAlwaysOnTop(true);
 		return response_fn();
 	}
 

@@ -7,7 +7,12 @@ const transition_transition_class = `${fullscreen_id_class}-transition-transitio
 const max_z_index = '2147483647';
 
 // Aliasses for different browsers (rest of aliasses are in the inserted script)
-let fullscreenchange_aliasses = ["fullscreenchange", "webkitfullscreenchange", "mozfullscreenchange", "MSFullscreenChange"];
+let fullscreenchange_aliasses = [
+  'fullscreenchange',
+  'webkitfullscreenchange',
+  'mozfullscreenchange',
+  'MSFullscreenChange',
+];
 
 // Insert requestFullScreen mock
 const code_to_insert_in_page = `{
@@ -82,9 +87,37 @@ const code_to_insert_in_page = `{
   });
 }`;
 
-let elt = document.createElement("script");
+let elt = document.createElement('script');
 elt.innerHTML = code_to_insert_in_page;
 document.documentElement.appendChild(elt);
+document.documentElement.removeChild(elt);
+
+setTimeout(() => {
+  return false;
+
+  for (let stylesheet of document.styleSheets) {
+    try {
+      for (let rule of stylesheet.cssRules) {
+        // Remove the css rule if the media query doesn't match,
+        // Force match it when it does
+        if (rule.media) {
+          if (window.matchMedia(rule.media.mediaText).matches) {
+            // console.log(`The media (${rule.media.mediaText}) matches!`);
+            rule.media.__WINDOWED_FALLBACK_MEDIATEXT__ = rule.media.mediaText;
+            rule.media.mediaText = "all";
+          } else {
+            // console.log(`The media (${rule.media.mediaText}) does not match!`);
+            rule.media.__WINDOWED_FALLBACK_MEDIATEXT__ = rule.media.mediaText;
+            rule.media.mediaText = "not all";
+          }
+        }
+      }
+    } catch (err) {
+      console.warn(`WINDOWED: Couldn't read stylesheet rules because of CORS...`);
+      console.log(`stylesheet:`, stylesheet)
+    }
+  }
+}, 1000);
 
 // console.log('Runs in proper sandbox:', document.documentElement.constructor === HTMLHtmlElement);
 // NOTE On chrome, extensions run in a proper sandbox (above will log true),
@@ -93,11 +126,13 @@ document.documentElement.appendChild(elt);
 // On Firefox however, this is not the case, and I might (because firefox screws me with CSP)
 // need to use this quirk to work on all pages
 
+let remove_domnoderemoved_listener = () => {};
+
 let delay = (ms) => {
   return new Promise((resolve) => {
     setTimeout(() => resolve(), ms);
   });
-}
+};
 
 let has_style_created = false;
 let create_style_rule = () => {
@@ -113,6 +148,8 @@ let create_style_rule = () => {
       bottom: 0 !important;
       right: 0 !important;
       left: 0 !important;
+      width: 100%;
+      height: 100%;
       z-index: ${max_z_index} !important;
     }
 
@@ -158,7 +195,7 @@ let create_style_rule = () => {
   let styleEl = document.createElement('style');
   document.head.appendChild(styleEl);
   styleEl.appendChild(document.createTextNode(css));
-}
+};
 
 const send_event = (element, type) => {
   const event = new Event(type, {
@@ -170,7 +207,7 @@ const send_event = (element, type) => {
     element[`on${type}`](event);
   }
   element.dispatchEvent(event);
-}
+};
 
 const parent_elements = function*(element) {
   let el = element.parentElement;
@@ -178,14 +215,14 @@ const parent_elements = function*(element) {
     yield el;
     el = el.parentElement;
   }
-}
+};
 
 const send_fullscreen_events = (element) => {
   for (let fullscreenchange of fullscreenchange_aliasses) {
     send_event(element, fullscreenchange);
   }
   send_event(window, 'resize');
-}
+};
 
 let send_chrome_message = (message) => {
   return new Promise((resolve) => {
@@ -193,21 +230,26 @@ let send_chrome_message = (message) => {
       resolve();
     });
   });
-}
+};
 
-window.addEventListener("message", async (event) => {
+window.addEventListener('message', async (event) => {
   // We only accept messages from ourselves
-  if (event.source != window)
-      return;
+  if (event.source != window) return;
 
   // Going INTO fullscreen
-  if (event.data.type && (event.data.type == "enter_fullscreen")) {
+  if (event.data.type && event.data.type == 'enter_fullscreen') {
     create_style_rule();
     let element = document.querySelector(`.${fullscreen_id_class}`);
 
+    document.addEventListener('DOMNodeRemoved', e => {
+      if (e.target.contains(element)) {
+        window.alert('The page removed the element that was supposed to be fullscreen... this makes it impossible to show this in fullscreen');
+      }
+    })
+
     if (window.parent !== window) {
       // Ask parent-windowed code to become fullscreen too
-      window.parent.postMessage({ type: "enter_fullscreen_iframe" }, "*");
+      window.parent.postMessage({ type: 'enter_fullscreen_iframe' }, '*');
     } else {
       // Send popup command to extension
       let { top, left } = element.getBoundingClientRect();
@@ -215,7 +257,7 @@ window.addEventListener("message", async (event) => {
       let rect = element.getBoundingClientRect();
 
       // rect.width
-      let ratio_width = Math.min(rect.height / 9 * 16, rect.width) // 16:9
+      let ratio_width = Math.min(rect.height / 9 * 16, rect.width); // 16:9
       let width_diff = rect.width - ratio_width;
 
       document.documentElement.classList.add(transition_class);
@@ -228,7 +270,7 @@ window.addEventListener("message", async (event) => {
           height: rect.height,
           width: ratio_width,
           top: rect.top + menubar_size,
-          left: rect.left + (width_diff / 2),
+          left: rect.left + width_diff / 2,
         },
       });
       await delay(10);
@@ -248,11 +290,10 @@ window.addEventListener("message", async (event) => {
 
     await delay(500);
     document.documentElement.classList.remove(transition_transition_class);
-
   }
 
   // Going OUT fullscreen
-  if (event.data.type && (event.data.type == "exit_fullscreen")) {
+  if (event.data.type && event.data.type == 'exit_fullscreen') {
     // Hide everything for a smooth transition
     document.documentElement.classList.add(transition_class);
     document.documentElement.classList.add(transition_transition_class);
@@ -272,7 +313,7 @@ window.addEventListener("message", async (event) => {
     // If we are a frame, tell the parent frame to exit fullscreen
     // If we aren't (we are a popup), tell the background page to make me tab again
     if (window.parent !== window) {
-      window.parent.postMessage({ type: "exit_fullscreen_iframe" }, "*");
+      window.parent.postMessage({ type: 'exit_fullscreen_iframe' }, '*');
     } else {
       await delay(10);
       await send_chrome_message({ type: 'please_make_me_a_tab_again' });
