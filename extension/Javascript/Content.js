@@ -1,4 +1,5 @@
 const fullscreen_id_class = `--Windowed-long-id-that-does-not-conflict--`;
+const fullscreen_id_class_select_only = `${fullscreen_id_class}-select`
 const fullscreen_parent = `${fullscreen_id_class}-parent`;
 const body_class = `${fullscreen_id_class}-body`;
 const transition_class = `${fullscreen_id_class}-transition`;
@@ -22,10 +23,15 @@ const code_to_insert_in_page = `{
   let fullscreenelement_aliasses = ["fullscreenElement", "webkitFullscreenElement", "mozFullscreenElement", "mozFullScreenElement", "msFullscreenElement", "webkitCurrentFullScreenElement"];
 
   let overwrite = (object, property, value) => {
-    Object.defineProperty(object, property, {
-      value: value,
-      configurable: true,
-    });
+    try {
+      Object.defineProperty(object, property, {
+        value: value,
+        configurable: true,
+        writable: true,
+      });
+    } catch (err) {
+      // Nothing
+    }
   }
 
   const set_fullscreen_element = (element = null) => {
@@ -48,6 +54,7 @@ const code_to_insert_in_page = `{
   }
 
   const requestFullscreen = function() {
+
     // Because youtube actually checks for those sizes?!
     const window_width = Math.max(window.outerWidth, window.innerWidth);
     const window_height = Math.max(window.outerHeight, window.innerHeight);
@@ -55,7 +62,8 @@ const code_to_insert_in_page = `{
     overwrite(window.screen, 'height', window_height);
 
     const element = this;
-    element.classList.add('${fullscreen_id_class}');
+    let rect = element.getBoundingClientRect();
+    element.classList.add('${fullscreen_id_class_select_only}');
     set_fullscreen_element(element);
 
     // Tell extension code (outside of this block) to go into fullscreen
@@ -239,7 +247,7 @@ window.addEventListener('message', async (event) => {
   // Going INTO fullscreen
   if (event.data.type && event.data.type == 'enter_fullscreen') {
     create_style_rule();
-    let element = document.querySelector(`.${fullscreen_id_class}`);
+    let element = document.querySelector(`.${fullscreen_id_class_select_only}`);
 
     document.addEventListener('DOMNodeRemoved', e => {
       if (e.target.contains(element)) {
@@ -252,7 +260,6 @@ window.addEventListener('message', async (event) => {
       window.parent.postMessage({ type: 'enter_fullscreen_iframe' }, '*');
     } else {
       // Send popup command to extension
-      let { top, left } = element.getBoundingClientRect();
       let menubar_size = window.outerHeight - window.innerHeight; // Asumme there is just header, no browser footer
       let rect = element.getBoundingClientRect();
 
@@ -260,6 +267,7 @@ window.addEventListener('message', async (event) => {
       let ratio_width = Math.min(rect.height / 9 * 16, rect.width); // 16:9
       let width_diff = rect.width - ratio_width;
 
+      element.classList.add(fullscreen_id_class);
       document.documentElement.classList.add(transition_class);
       document.documentElement.classList.add(transition_transition_class);
 
@@ -306,8 +314,9 @@ window.addEventListener('message', async (event) => {
       element.classList.remove(fullscreen_parent);
     }
 
-    const fullscreen_element = document.querySelector(`.${fullscreen_id_class}`);
+    const fullscreen_element = document.querySelector(`.${fullscreen_id_class_select_only}`);
     send_fullscreen_events(fullscreen_element);
+    fullscreen_element.classList.remove(fullscreen_id_class_select_only);
     fullscreen_element.classList.remove(fullscreen_id_class);
 
     // If we are a frame, tell the parent frame to exit fullscreen
