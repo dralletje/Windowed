@@ -207,12 +207,15 @@ const code_to_insert_in_page = on_webpage`{
       return 'EXIT';
     }
 
+    let top_vs_bottom = last_click_y < 300 ? 'translateY(0px)' : 'translateY(-100%)';
+    let left_vs_right = last_click_x < 300 ? 'translateX(0px)' : 'translateX(-100%)';
+
     let popup = createElementFromHTML(`
       <div class="${popup_class}" style="
         position: absolute;
         top: ${last_click_y}px;
         left: ${last_click_x}px;
-        transform: translateX(-100%) translateY(-100%);
+        transform: ${top_vs_bottom} ${left_vs_right};
         background-color: white;
         border-radius: 3px;
         border: solid #eee 1px;
@@ -472,7 +475,7 @@ let create_style_rule = () => {
 
     [data-${body_class}] [data-${fullscreen_parent}] {
       /* This thing is css black magic */
-      all: initial;
+      all: initial !important;
       z-index: ${max_z_index} !important;
 
       /* Debugging */
@@ -590,11 +593,14 @@ let go_into_fullscreen = async () => {
       }
     }
   });
-  mutationObserver.observe(element.parentElement, {
-    childList: true,
-  });
-  remove_domnoderemoved_listener = () => {
-    mutationObserver.disconnect();
+
+  if (element.parentElement) {
+    mutationObserver.observe(element.parentElement, {
+      childList: true,
+    });
+    remove_domnoderemoved_listener = () => {
+      mutationObserver.disconnect();
+    }
   }
 
   // remove_domnoderemoved_listener = async (e) => {
