@@ -1,12 +1,12 @@
-const fullscreen_id_class = `--Windowed-long-id-that-does-not-conflict--`;
-const fullscreen_id_class_select_only = `${fullscreen_id_class}-select`;
-const fullscreen_id_cloned = `${fullscreen_id_class}-ugly-hacky-cloned`;
-const fullscreen_parent = `${fullscreen_id_class}-parent`;
-const body_class = `${fullscreen_id_class}-body`;
-const transition_class = `${fullscreen_id_class}-transition`;
-const transition_transition_class = `${fullscreen_id_class}-transition-transition`;
+const fullscreen_id_namespace = `windowed_long_id_that_does_not_conflict`;
 
-const popup_class = `${fullscreen_id_class}-popup`;
+const fullscreen_select = `${fullscreen_id_namespace}_select`
+const fullscreen_active = `${fullscreen_id_namespace}_active`;
+const fullscreen_element_cloned = `${fullscreen_id_namespace}_ugly_hacky_cloned`;
+const fullscreen_parent = `${fullscreen_id_namespace}_parent`;
+const body_class = `${fullscreen_id_namespace}_body`;
+
+const popup_class = `${fullscreen_id_namespace}_popup`;
 
 const max_z_index = '2147483647';
 
@@ -99,6 +99,13 @@ let external_function_parent = (function_id) => async (...args) => {
   });
 }
 
+let enable_selector = (element, key) => {
+  element.dataset[key] = true;
+}
+let disable_selector = (element, key) => {
+  delete element.dataset[key];
+}
+
 // Insert requestFullScreen mock
 const code_to_insert_in_page = on_webpage`{
   // Alliases for different browsers
@@ -189,7 +196,7 @@ const code_to_insert_in_page = on_webpage`{
     await go_into_fullscreen();
   }}
 
-  let create_popup = ${async (is_already_fullscreen) => {
+  let create_popup = ${async () => {
     create_style_rule();
     clear_popup();
 
@@ -252,9 +259,9 @@ const code_to_insert_in_page = on_webpage`{
 
     if (result === 'fullscreen') {
       let element = document.querySelector(
-        `.${fullscreen_id_class_select_only}`
+        `[data-${fullscreen_select}]`
       );
-      element.classList.remove(fullscreen_id_class_select_only);
+      disable_selector(element, fullscreen_select);
 
       // TODO This now spawns fullscreen that returns to a separate window
       // .... when removed, because it is opened from the extension.
@@ -279,7 +286,7 @@ const code_to_insert_in_page = on_webpage`{
   }}
 
   let exitFullscreen = async function(original) {
-    let windowed_fullscreen = document.querySelector('.${fullscreen_id_class}');
+    let windowed_fullscreen = document.querySelector('[data-${fullscreen_active}]');
 
     if (windowed_fullscreen) {
       // If the fullscreen element is a frame, tell it to exit fullscreen too
@@ -305,7 +312,7 @@ const code_to_insert_in_page = on_webpage`{
   ${'' /* NOTE requestFullscreen */}
   const requestFullscreen = async function(original, force, ...args) {
     const element = this;
-    element.classList.add('${fullscreen_id_class_select_only}');
+    element.dataset['${fullscreen_select}'] = true;
 
     // Tell extension code (outside of this block) to go into fullscreen
     // window.postMessage({ type: force ? "enter_fullscreen" : "show_fullscreen_popup" }, "*");
@@ -324,7 +331,7 @@ const code_to_insert_in_page = on_webpage`{
     overwrite(window.screen, 'width', window_width);
     overwrite(window.screen, 'height', window_height);
 
-    let element = document.querySelector('.${fullscreen_id_class_select_only}');
+    let element = document.querySelector('[data-${fullscreen_select}]');
     set_fullscreen_element(element || document.body);
     send_fullscreen_events();
   }
@@ -452,7 +459,7 @@ let create_style_rule = () => {
   has_style_created = true;
 
   let css = `
-    .${body_class} .${fullscreen_id_class} {
+    [data-${body_class}] [data-${fullscreen_active}] {
       position: fixed !important;
       top: 0 !important;
       bottom: 0 !important;
@@ -463,7 +470,7 @@ let create_style_rule = () => {
       z-index: ${max_z_index} !important;
     }
 
-    .${body_class} .${fullscreen_parent} {
+    [data-${body_class}] [data-${fullscreen_parent}] {
       /* This thing is css black magic */
       all: initial;
       z-index: ${max_z_index} !important;
@@ -473,33 +480,18 @@ let create_style_rule = () => {
     }
 
     /* Not sure if this is necessary, but putting it here just in case */
-    .${body_class} .${fullscreen_parent}::before,
-    .${body_class} .${fullscreen_parent}::after {
+    [data-${body_class}] [data-${fullscreen_parent}]::before,
+    [data-${body_class}] [data-${fullscreen_parent}]::after {
       display: none;
     }
 
-    .${body_class} {
+    [data-${body_class}] {
       /* Prevent scrolling */
       overflow: hidden !important;
 
       /* For debugging, leaving this just in here so I see when something goes wrong */
       /* background-color: rgb(113, 0, 180); */
     }
-
-    /*
-    .${transition_transition_class} {
-      background-color: black !important;
-    }
-
-    .${transition_transition_class} body {
-      transition: opacity .5s;
-      opacity: 1;
-    }
-
-    .${transition_class} body {
-      opacity: 0 !important;
-    }
-    */
 
     .${popup_class} > div {
       cursor: pointer;
@@ -570,15 +562,9 @@ let createElementFromHTML = (htmlString) => {
   return div.firstChild;
 };
 
-// document.addEventListener('__windowed__', e => {
-//   console.log(`__windowed__ e:`, e);
-//   e.detail.cb();
-//   e.callback();
-// })
-
 let go_into_fullscreen = async () => {
   create_style_rule();
-  let element = document.querySelector(`.${fullscreen_id_class_select_only}`);
+  let element = document.querySelector(`[data-${fullscreen_select}]`);
   let cloned = element.cloneNode(true);
 
   remove_domnoderemoved_listener();
@@ -588,8 +574,8 @@ let go_into_fullscreen = async () => {
         if (removed === element) {
           remove_domnoderemoved_listener();
 
-          cloned.classList.add(fullscreen_id_cloned);
-          cloned.classList.add(fullscreen_id_class_select_only);
+          enable_selector(cloned, fullscreen_element_cloned);
+          enable_selector(cloned, fullscreen_select);
           document.body.appendChild(cloned);
           go_into_fullscreen();
 
@@ -660,10 +646,10 @@ let go_into_fullscreen = async () => {
   // };
   // document.addEventListener('DOMNodeRemoved', remove_domnoderemoved_listener);
 
-  element.classList.add(fullscreen_id_class);
+  enable_selector(element, fullscreen_active);
   // Add fullscreen class to every parent of our fullscreen element
   for (let parent_element of parent_elements(element)) {
-    parent_element.classList.add(fullscreen_parent);
+    enable_selector(parent_element, fullscreen_parent)
   }
 
   if (window.parent !== window) {
@@ -678,10 +664,6 @@ let go_into_fullscreen = async () => {
     let ratio_width = Math.min(rect.height / 9 * 16, rect.width); // 16:9
     let width_diff = rect.width - ratio_width;
 
-    // document.documentElement.classList.add(transition_class);
-    // document.documentElement.classList.add(transition_transition_class);
-
-    // await delay(10);
     await send_chrome_message({
       type: 'please_make_me_a_popup',
       position: {
@@ -691,41 +673,34 @@ let go_into_fullscreen = async () => {
         left: rect.left + width_diff / 2,
       },
     });
-    // await delay(10);
   }
 
 
   window.postMessage({ type: 'WINDOWED-confirm-fullscreen' }, '*');
 
   // Add no scroll to the body and let everything kick in
-  document.body.classList.add(body_class);
-  // document.documentElement.classList.remove(transition_class);
-  // await delay(500);
-  // document.documentElement.classList.remove(transition_transition_class);
+  enable_selector(document.body, body_class)
 };
 
 let go_out_of_fullscreen = async () => {
-  // Hide everything for a smooth transition
-  // document.documentElement.classList.add(transition_class);
-  // document.documentElement.classList.add(transition_transition_class);
-
   // Remove no scroll from body (and remove all styles)
-  document.body.classList.remove(body_class);
+  disable_selector(document.body, body_class)
 
   // Remove fullscreen class... from everything
-  for (let element of document.querySelectorAll(`.${fullscreen_parent}`)) {
-    element.classList.remove(fullscreen_parent);
+  for (let element of document.querySelectorAll(`[data-${fullscreen_parent}]`)) {
+    disable_selector(element, fullscreen_parent);
   }
 
   remove_domnoderemoved_listener();
 
-  const fullscreen_element = document.querySelector(
-    `.${fullscreen_id_class_select_only}`
-  );
 
   send_fullscreen_events();
-  fullscreen_element.classList.remove(fullscreen_id_class_select_only);
-  fullscreen_element.classList.remove(fullscreen_id_class);
+
+  const fullscreen_element = document.querySelector(
+    `[data-${fullscreen_select}]`
+  );
+  disable_selector(fullscreen_element, fullscreen_select);
+  disable_selector(fullscreen_element, fullscreen_active);
 
   // If we are a frame, tell the parent frame to exit fullscreen
   // If we aren't (we are a popup), tell the background page to make me tab again
@@ -737,42 +712,16 @@ let go_out_of_fullscreen = async () => {
     await delay(500);
   }
 
-  let cloned = document.querySelector(`.${fullscreen_id_cloned}`);
+  let cloned = document.querySelector(`[data-${fullscreen_element_cloned}]`);
   if (cloned) {
     document.body.removeChild(cloned);
   }
-
-  // document.documentElement.classList.remove(transition_class);
-  // await delay(2000);
-  // document.documentElement.classList.remove(transition_transition_class);
 };
-
-// document.addEventListener('CUSTOM_WINDOWED_TO_PAGE', async (event) => {
-//   try {
-//     let data = event.detail;
-//     let fn = external_functions[data.function_id];
-//     console.log(`event:`, data);
-//     console.log(`fn:`, fn);
-//     let result = await fn(event.target, ...data.args);
-//     console.log(`result:`, result);
-//     window.postMessage(
-//       {
-//         type: 'CUSTOM_WINDOW_TO_PAGE',
-//         request_id: data.request_id,
-//         result: result,
-//       },
-//       '*'
-//     );
-//   } catch (err) {
-//     console.log(`err:`, err);
-//   }
-// });
 
 external_functions.is_fullscreen = () => {
   const fullscreen_element = document.querySelector(
-    `.${fullscreen_id_class}`
+    `[data-${fullscreen_active}]`
   );
-  console.log(`fullscreen_element:`, fullscreen_element)
   return fullscreen_element != null;
 }
 
