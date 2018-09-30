@@ -226,13 +226,13 @@ const code_to_insert_in_page = on_webpage`{
       ">
         <div data-target="windowed">
           <img
-            src="${chrome.extension.getURL("Icons/Icon_Windowed@scalable.svg")}"
+            src="${chrome.extension.getURL("Images/Icon_Windowed@scalable.svg")}"
           />
           <span>Windowed</span>
         </div>
         <div data-target="fullscreen">
           <img
-            src="${chrome.extension.getURL("Icons/Icon_EnterFullscreen@scalable.svg")}"
+            src="${chrome.extension.getURL("Images/Icon_EnterFullscreen@scalable.svg")}"
           />
           <span>Fullscreen</span>
         </div>

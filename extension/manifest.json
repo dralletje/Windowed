@@ -6,7 +6,7 @@
     "name": "Michiel Dral",
     "url": "https://dral.eu/"
   },
-  "version": "12",
+  "version": "14",
   "manifest_version": 2,
   "permissions": [
     "tabs","<all_urls>"
@@ -29,7 +29,7 @@
     ]
   },
   "web_accessible_resources": [
-    "Icons/*"
+    "Images/*"
   ],
   "icons": {
     "16": "Icons/Icon_16.png",
