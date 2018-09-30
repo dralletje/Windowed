@@ -347,6 +347,11 @@ const code_to_insert_in_page = on_webpage`{
         finish_fullscreen();
       }
     }
+    if (frame || window.parent === message.source || message.target === message.source) {
+      if (message.data && message.data.type === 'WINDOWED-exit-fullscreen') {
+        exitFullscreen.call(document, original_exitFullscreen);
+      }
+    }
 
     if (frame != null && message.data) {
       if (message.data.type === 'enter_fullscreen_iframe') {
@@ -446,7 +451,7 @@ const send_fullscreen_events = () => {
 // On Firefox however, this is not the case, and I might (because firefox screws me with CSP)
 // need to use this quirk to work on all pages
 
-let remove_domnoderemoved_listener = () => {};
+let clear_listeners = () => {};
 
 let delay = (ms) => {
   return new Promise((resolve) => {
@@ -559,6 +564,12 @@ document.onclick = function(e) {
   clear_popup();
 };
 
+let exit_fullscreen_on_page = () => {
+  window.postMessage({
+    type: 'WINDOWED-exit-fullscreen',
+  }, '*')
+}
+
 let createElementFromHTML = (htmlString) => {
   var div = document.createElement('div');
   div.innerHTML = htmlString.trim();
@@ -570,12 +581,12 @@ let go_into_fullscreen = async () => {
   let element = document.querySelector(`[data-${fullscreen_select}]`);
   let cloned = element.cloneNode(true);
 
-  remove_domnoderemoved_listener();
+  clear_listeners();
   var mutationObserver = new MutationObserver(async (mutations) => {
     for (let mutation of mutations) {
       for (let removed of mutation.removedNodes) {
         if (removed === element) {
-          remove_domnoderemoved_listener();
+          clear_listeners();
 
           enable_selector(cloned, fullscreen_element_cloned);
           enable_selector(cloned, fullscreen_select);
@@ -598,59 +609,25 @@ let go_into_fullscreen = async () => {
     mutationObserver.observe(element.parentElement, {
       childList: true,
     });
-    remove_domnoderemoved_listener = () => {
-      mutationObserver.disconnect();
-    }
   }
 
-  // remove_domnoderemoved_listener = async (e) => {
-  //   return false;
-  //
-  //   let element = document.querySelector(`.${fullscreen_id_class}`);
-  //   if (element == null) {
-  //     document.removeEventListener(
-  //       'DOMNodeRemoved',
-  //       remove_domnoderemoved_listener
-  //     );
-  //   }
-  //
-  //   if (e.target.contains(element)) {
-  //     // NOTE I first asked users here, but now I just force it hehe.
-  //     // let try_anyway = window.confirm(
-  //     //   'The page removed the element that was supposed to be fullscreen... this makes it impossible to show this windowed :(\n\nIt is possible that this works, you want to try anyway?'
-  //     // );
-  //     let try_anyway = true;
-  //
-  //     document.removeEventListener(
-  //       'DOMNodeRemoved',
-  //       remove_domnoderemoved_listener
-  //     );
-  //
-  //     if (try_anyway) {
-  //       // NOTE Honestly this stuff is messy and most likely leaves
-  //       // .... lot of memory leaks and stuff...
-  //       let cloned = element.cloneNode(true);
-  //
-  //       // await go_out_of_fullscreen();
-  //
-  //       cloned.classList.add(fullscreen_id_cloned);
-  //       cloned.classList.add(fullscreen_id_class_select_only);
-  //       document.body.appendChild(cloned);
-  //       go_into_fullscreen();
-  //
-  //       await delay(500);
-  //       if (cloned.contentWindow && cloned.contentWindow.postMessage) {
-  //         cloned.contentWindow.postMessage(
-  //           { type: 'WINDOWED-confirm-fullscreen' },
-  //           '*'
-  //         );
-  //       }
-  //     } else {
-  //       go_out_of_fullscreen();
-  //     }
-  //   }
-  // };
-  // document.addEventListener('DOMNodeRemoved', remove_domnoderemoved_listener);
+  let escape_listener = (e) => {
+    if (!e.defaultPrevented) {
+      exit_fullscreen_on_page();
+    }
+  }
+  window.addEventListener('keyup', escape_listener);
+
+  let beforeunload_listener = (e) => {
+    exit_fullscreen_on_page();
+  }
+  window.addEventListener('beforeunload', beforeunload_listener);
+
+  clear_listeners = () => {
+    mutationObserver.disconnect();
+    window.removeEventListener('keyup', escape_listener);
+    window.removeEventListener('beforeunload', beforeunload_listener);
+  }
 
   enable_selector(element, fullscreen_active);
   // Add fullscreen class to every parent of our fullscreen element
@@ -697,7 +674,7 @@ let go_out_of_fullscreen = async () => {
     disable_selector(element, fullscreen_parent);
   }
 
-  remove_domnoderemoved_listener();
+  clear_listeners();
 
 
   send_fullscreen_events();
