@@ -579,53 +579,87 @@ let createElementFromHTML = (htmlString) => {
 let go_into_fullscreen = async () => {
   create_style_rule();
   let element = document.querySelector(`.${fullscreen_id_class_select_only}`);
+  let cloned = element.cloneNode(true);
 
-  remove_domnoderemoved_listener = async (e) => {
-    let element = document.querySelector(`.${fullscreen_id_class}`);
-    if (element == null) {
-      document.removeEventListener(
-        'DOMNodeRemoved',
-        remove_domnoderemoved_listener
-      );
-    }
+  remove_domnoderemoved_listener();
+  var mutationObserver = new MutationObserver(async (mutations) => {
+    for (let mutation of mutations) {
+      for (let removed of mutation.removedNodes) {
+        if (removed === element) {
+          remove_domnoderemoved_listener();
 
-    if (e.target.contains(element)) {
-      // NOTE I first asked users here, but now I just force it hehe.
-      // let try_anyway = window.confirm(
-      //   'The page removed the element that was supposed to be fullscreen... this makes it impossible to show this windowed :(\n\nIt is possible that this works, you want to try anyway?'
-      // );
-      let try_anyway = true;
+          cloned.classList.add(fullscreen_id_cloned);
+          cloned.classList.add(fullscreen_id_class_select_only);
+          document.body.appendChild(cloned);
+          go_into_fullscreen();
 
-      document.removeEventListener(
-        'DOMNodeRemoved',
-        remove_domnoderemoved_listener
-      );
-
-      if (try_anyway) {
-        // NOTE Honestly this stuff is messy and most likely leaves
-        // .... lot of memory leaks and stuff...
-        let cloned = element.cloneNode(true);
-
-        // await go_out_of_fullscreen();
-
-        cloned.classList.add(fullscreen_id_cloned);
-        cloned.classList.add(fullscreen_id_class_select_only);
-        document.body.appendChild(cloned);
-        go_into_fullscreen();
-
-        await delay(500);
-        if (cloned.contentWindow && cloned.contentWindow.postMessage) {
-          cloned.contentWindow.postMessage(
-            { type: 'WINDOWED-confirm-fullscreen' },
-            '*'
-          );
+          await delay(500);
+          if (cloned.contentWindow && cloned.contentWindow.postMessage) {
+            cloned.contentWindow.postMessage(
+              { type: 'WINDOWED-confirm-fullscreen' },
+              '*'
+            );
+          }
         }
-      } else {
-        go_out_of_fullscreen();
       }
     }
-  };
-  document.addEventListener('DOMNodeRemoved', remove_domnoderemoved_listener);
+  });
+  mutationObserver.observe(element.parentElement, {
+    childList: true,
+  });
+  remove_domnoderemoved_listener = () => {
+    mutationObserver.disconnect();
+  }
+
+  // remove_domnoderemoved_listener = async (e) => {
+  //   return false;
+  //
+  //   let element = document.querySelector(`.${fullscreen_id_class}`);
+  //   if (element == null) {
+  //     document.removeEventListener(
+  //       'DOMNodeRemoved',
+  //       remove_domnoderemoved_listener
+  //     );
+  //   }
+  //
+  //   if (e.target.contains(element)) {
+  //     // NOTE I first asked users here, but now I just force it hehe.
+  //     // let try_anyway = window.confirm(
+  //     //   'The page removed the element that was supposed to be fullscreen... this makes it impossible to show this windowed :(\n\nIt is possible that this works, you want to try anyway?'
+  //     // );
+  //     let try_anyway = true;
+  //
+  //     document.removeEventListener(
+  //       'DOMNodeRemoved',
+  //       remove_domnoderemoved_listener
+  //     );
+  //
+  //     if (try_anyway) {
+  //       // NOTE Honestly this stuff is messy and most likely leaves
+  //       // .... lot of memory leaks and stuff...
+  //       let cloned = element.cloneNode(true);
+  //
+  //       // await go_out_of_fullscreen();
+  //
+  //       cloned.classList.add(fullscreen_id_cloned);
+  //       cloned.classList.add(fullscreen_id_class_select_only);
+  //       document.body.appendChild(cloned);
+  //       go_into_fullscreen();
+  //
+  //       await delay(500);
+  //       if (cloned.contentWindow && cloned.contentWindow.postMessage) {
+  //         cloned.contentWindow.postMessage(
+  //           { type: 'WINDOWED-confirm-fullscreen' },
+  //           '*'
+  //         );
+  //       }
+  //     } else {
+  //       go_out_of_fullscreen();
+  //     }
+  //   }
+  // };
+  // document.addEventListener('DOMNodeRemoved', remove_domnoderemoved_listener);
+
   element.classList.add(fullscreen_id_class);
   // Add fullscreen class to every parent of our fullscreen element
   for (let parent_element of parent_elements(element)) {
@@ -683,10 +717,7 @@ let go_out_of_fullscreen = async () => {
     element.classList.remove(fullscreen_parent);
   }
 
-  document.removeEventListener(
-    'DOMNodeRemoved',
-    remove_domnoderemoved_listener
-  );
+  remove_domnoderemoved_listener();
 
   const fullscreen_element = document.querySelector(
     `.${fullscreen_id_class_select_only}`

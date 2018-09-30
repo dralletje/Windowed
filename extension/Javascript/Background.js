@@ -41,7 +41,20 @@ chrome.runtime.onMessage.addListener(async (request, sender, response_fn) => {
 	if (request.type === 'please_make_me_a_popup') {
 		// TODO Save windowId and index inside that window,
 		// so when you "pop" it back, it will go where you opened it
-		let { left: screenLeft, top: screenTop } = await get_window(sender.tab.windowId);
+		let { left: screenLeft, top: screenTop, type: windowType } = await get_window(sender.tab.windowId);
+
+		// TODO Check possible 'panel' support in firefox
+		if (windowType === 'popup') {
+			// Already a popup, no need to re-create the window
+			await browser.windows.update(sender.tab.windowId, {
+				left: Math.round(screenLeft + frame.left),
+				top: Math.round(screenTop + frame.top - Chrome_Popup_Menubar_Height),
+				width: Math.round(frame.width),
+				height: Math.round(frame.height + Chrome_Popup_Menubar_Height),
+			});
+			return;
+		}
+
 		let frame = request.position;
 		const created_window = await browser.windows.create({
 			tabId: sender.tab.id,
