@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="128px" height="128px" viewBox="0 0 128 128" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" style="background: #FFFFFF;">
+    <!-- Generator: Sketch 49.1 (51147) - http://www.bohemiancoding.com/sketch -->
+    <title>Icon_Windowed@scalable</title>
+    <desc>Created with Sketch.</desc>
+    <defs>
+        <rect id="path-1" x="62" y="60" width="65" height="55" rx="5"></rect>
+    </defs>
+    <g id="Icon_Windowed" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <polygon id="Path-8" stroke="#000000" stroke-width="12.5" stroke-linejoin="round" points="7 20 7 98 105 98 105 20"></polygon>
+        <g id="Rectangle-2">
+            <use fill="#000000" fill-rule="evenodd" xlink:href="#path-1"></use>
+            <rect stroke="#000000" stroke-width="10" x="67" y="65" width="55" height="45" rx="5"></rect>
+            <rect stroke="#FFFFFF" stroke-width="6" x="59" y="57" width="71" height="61" rx="5"></rect>
+        </g>
+    </g>
+</svg>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="128px" height="128px" viewBox="0 0 128 128" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" style="background: #FFFFFF;">
+    <!-- Generator: Sketch 49.1 (51147) - http://www.bohemiancoding.com/sketch -->
+    <title>Icon_ExitFullscreen@scalable</title>
+    <desc>Created with Sketch.</desc>
+    <defs></defs>
+    <g id="Icon_ExitFullscreen" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="Group" transform="translate(9.000000, 9.000000)" fill="#000000">
+            <polygon id="Path" points="27.3361905 110 27.3361905 83.3355898 0 83.3355898 0 70 41 70 41 110"></polygon>
+            <polygon id="Path" transform="translate(20.500000, 20.000000) scale(1, -1) translate(-20.500000, -20.000000) " points="27.3361905 40 27.3361905 13.3355898 0 13.3355898 0 0 41 0 41 40"></polygon>
+            <polygon id="Path" transform="translate(89.500000, 20.000000) scale(-1, -1) translate(-89.500000, -20.000000) " points="96.3361905 40 96.3361905 13.3355898 69 13.3355898 69 0 110 0 110 40"></polygon>
+            <polygon id="Path" transform="translate(89.500000, 90.000000) scale(-1, 1) translate(-89.500000, -90.000000) " points="96.3361905 110 96.3361905 83.3355898 69 83.3355898 69 70 110 70 110 110"></polygon>
+        </g>
+    </g>
+</svg>

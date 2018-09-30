@@ -1,5 +1,6 @@
 const fullscreen_id_class = `--Windowed-long-id-that-does-not-conflict--`;
 const fullscreen_id_class_select_only = `${fullscreen_id_class}-select`;
+const fullscreen_id_cloned = `${fullscreen_id_class}-ugly-hacky-cloned`;
 const fullscreen_parent = `${fullscreen_id_class}-parent`;
 const body_class = `${fullscreen_id_class}-body`;
 const transition_class = `${fullscreen_id_class}-transition`;
@@ -64,6 +65,39 @@ let on_webpage = (strings, ...values) => {
 
   return result;
 };
+
+let all_communication_id = 0;
+let external_function_parent = (function_id) => async (...args) => {
+  let request_id = `FROM_CONTENT:${all_communication_id}`;
+  all_communication_id = all_communication_id + 1;
+
+  if (window.parent === window) {
+    return;
+  }
+
+  window.parent.postMessage({
+    type: 'CUSTOM_WINDOWED_FROM_PAGE',
+    request_id: request_id,
+    function_id: function_id,
+    args: args,
+  }, '*');
+
+  return new Promise((resolve, reject) => {
+    let listener = (event) => {
+      // We only accept messages from ourselves
+      if (event.source != window.parent) return;
+      if (event.data == null) return;
+
+      if (event.data.type === 'CUSTOM_WINDOWED_TO_PAGE') {
+        if (event.data.request_id === request_id) {
+          window.removeEventListener('message', listener);
+          resolve(event.data.result);
+        }
+      }
+    }
+    window.addEventListener('message', listener);
+  });
+}
 
 // Insert requestFullScreen mock
 const code_to_insert_in_page = on_webpage`{
@@ -159,6 +193,13 @@ const code_to_insert_in_page = on_webpage`{
     create_style_rule();
     clear_popup();
 
+    let is_fullscreen = await external_function_parent('is_fullscreen')();
+
+    if (is_fullscreen) {
+      await go_out_of_fullscreen();
+      return 'EXIT';
+    }
+
     let popup = createElementFromHTML(`
       <div class="${popup_class}" style="
         position: absolute;
@@ -171,18 +212,23 @@ const code_to_insert_in_page = on_webpage`{
         box-shadow: 0px 2px 4px #00000026;
         padding-top: 5px;
         padding-bottom: 5px;
-        font-size: 14px;
+        font-size: 16px;
         color: black;
         min-width: 150px;
         z-index: ${max_z_index};
       ">
-        <div data-target="windowed">Windowed</div>
-        <div data-target="fullscreen">Fullscreen</div>
-        ${
-          is_already_fullscreen
-            ? '<div data-target="exit">Exit fullscreen</div>'
-            : ''
-        }
+        <div data-target="windowed">
+          <img
+            src="${chrome.extension.getURL("Icons/Icon_Windowed@scalable.svg")}"
+          />
+          <span>Windowed</span>
+        </div>
+        <div data-target="fullscreen">
+          <img
+            src="${chrome.extension.getURL("Icons/Icon_EnterFullscreen@scalable.svg")}"
+          />
+          <span>Fullscreen</span>
+        </div>
       </div>
     `);
     document.body.appendChild(popup);
@@ -233,7 +279,7 @@ const code_to_insert_in_page = on_webpage`{
   }}
 
   let exitFullscreen = async function(original) {
-    let windowed_fullscreen = document.querySelector('.${fullscreen_id_class_select_only}');
+    let windowed_fullscreen = document.querySelector('.${fullscreen_id_class}');
 
     if (windowed_fullscreen) {
       // If the fullscreen element is a frame, tell it to exit fullscreen too
@@ -267,7 +313,7 @@ const code_to_insert_in_page = on_webpage`{
     if (force) {
       await make_tab_go_fullscreen();
     } else {
-      let next = await create_popup(document.webkitIsFullScreen);
+      let next = await create_popup();
     }
   }
 
@@ -458,12 +504,22 @@ let create_style_rule = () => {
     .${popup_class} > div {
       cursor: pointer;
       padding: 20px;
-      padding-top: 3px;
-      padding-bottom: 3px;
+      padding-top: 4px;
+      padding-bottom: 4px;
+      background-color: white;
+
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+    }
+
+    .${popup_class} > div > img {
+      height: 19px;
+      margin-right: 16px;
     }
 
     .${popup_class} > div:hover {
-      background-color: #eee;
+      filter: brightness(0.9);
     }
   `;
 
@@ -525,20 +581,34 @@ let go_into_fullscreen = async () => {
   let element = document.querySelector(`.${fullscreen_id_class_select_only}`);
 
   remove_domnoderemoved_listener = async (e) => {
-    if (e.target.contains(element)) {
-      let try_anyway = window.confirm(
-        'The page removed the element that was supposed to be fullscreen... this makes it impossible to show this windowed :(\n\nIt is possible that this works, you want to try anyway?'
+    let element = document.querySelector(`.${fullscreen_id_class}`);
+    if (element == null) {
+      document.removeEventListener(
+        'DOMNodeRemoved',
+        remove_domnoderemoved_listener
       );
+    }
+
+    if (e.target.contains(element)) {
+      // NOTE I first asked users here, but now I just force it hehe.
+      // let try_anyway = window.confirm(
+      //   'The page removed the element that was supposed to be fullscreen... this makes it impossible to show this windowed :(\n\nIt is possible that this works, you want to try anyway?'
+      // );
+      let try_anyway = true;
+
       document.removeEventListener(
         'DOMNodeRemoved',
         remove_domnoderemoved_listener
       );
 
       if (try_anyway) {
+        // NOTE Honestly this stuff is messy and most likely leaves
+        // .... lot of memory leaks and stuff...
         let cloned = element.cloneNode(true);
 
-        await go_out_of_fullscreen();
+        // await go_out_of_fullscreen();
 
+        cloned.classList.add(fullscreen_id_cloned);
         cloned.classList.add(fullscreen_id_class_select_only);
         document.body.appendChild(cloned);
         go_into_fullscreen();
@@ -556,6 +626,11 @@ let go_into_fullscreen = async () => {
     }
   };
   document.addEventListener('DOMNodeRemoved', remove_domnoderemoved_listener);
+  element.classList.add(fullscreen_id_class);
+  // Add fullscreen class to every parent of our fullscreen element
+  for (let parent_element of parent_elements(element)) {
+    parent_element.classList.add(fullscreen_parent);
+  }
 
   if (window.parent !== window) {
     // Ask parent-windowed code to become fullscreen too
@@ -569,11 +644,10 @@ let go_into_fullscreen = async () => {
     let ratio_width = Math.min(rect.height / 9 * 16, rect.width); // 16:9
     let width_diff = rect.width - ratio_width;
 
-    element.classList.add(fullscreen_id_class);
-    document.documentElement.classList.add(transition_class);
-    document.documentElement.classList.add(transition_transition_class);
+    // document.documentElement.classList.add(transition_class);
+    // document.documentElement.classList.add(transition_transition_class);
 
-    await delay(10);
+    // await delay(10);
     await send_chrome_message({
       type: 'please_make_me_a_popup',
       position: {
@@ -583,13 +657,9 @@ let go_into_fullscreen = async () => {
         left: rect.left + width_diff / 2,
       },
     });
-    await delay(10);
+    // await delay(10);
   }
 
-  // Add fullscreen class to every parent of our fullscreen element
-  for (let parent_element of parent_elements(element)) {
-    parent_element.classList.add(fullscreen_parent);
-  }
 
   window.postMessage({ type: 'WINDOWED-confirm-fullscreen' }, '*');
 
@@ -613,6 +683,11 @@ let go_out_of_fullscreen = async () => {
     element.classList.remove(fullscreen_parent);
   }
 
+  document.removeEventListener(
+    'DOMNodeRemoved',
+    remove_domnoderemoved_listener
+  );
+
   const fullscreen_element = document.querySelector(
     `.${fullscreen_id_class_select_only}`
   );
@@ -631,41 +706,52 @@ let go_out_of_fullscreen = async () => {
     await delay(500);
   }
 
+  let cloned = document.querySelector(`.${fullscreen_id_cloned}`);
+  if (cloned) {
+    document.body.removeChild(cloned);
+  }
+
   // document.documentElement.classList.remove(transition_class);
   // await delay(2000);
   // document.documentElement.classList.remove(transition_transition_class);
 };
 
-document.addEventListener('CUSTOM_WINDOWED_TO_PAGE', async (event) => {
-  try {
-    let data = event.detail;
-    let fn = external_functions[data.function_id];
-    console.log(`event:`, data);
-    console.log(`fn:`, fn);
-    let result = await fn(event.target, ...data.args);
-    console.log(`result:`, result);
-    window.postMessage(
-      {
-        type: 'CUSTOM_WINDOW_TO_PAGE',
-        request_id: data.request_id,
-        result: result,
-      },
-      '*'
-    );
-  } catch (err) {
-    console.log(`err:`, err);
-  }
-});
+// document.addEventListener('CUSTOM_WINDOWED_TO_PAGE', async (event) => {
+//   try {
+//     let data = event.detail;
+//     let fn = external_functions[data.function_id];
+//     console.log(`event:`, data);
+//     console.log(`fn:`, fn);
+//     let result = await fn(event.target, ...data.args);
+//     console.log(`result:`, result);
+//     window.postMessage(
+//       {
+//         type: 'CUSTOM_WINDOW_TO_PAGE',
+//         request_id: data.request_id,
+//         result: result,
+//       },
+//       '*'
+//     );
+//   } catch (err) {
+//     console.log(`err:`, err);
+//   }
+// });
+
+external_functions.is_fullscreen = () => {
+  const fullscreen_element = document.querySelector(
+    `.${fullscreen_id_class}`
+  );
+  console.log(`fullscreen_element:`, fullscreen_element)
+  return fullscreen_element != null;
+}
 
 window.addEventListener('message', async (event) => {
   // We only accept messages from ourselves
-  if (event.source != window) return;
   if (event.data == null) return;
-
   if (event.data.type === 'CUSTOM_WINDOWED_FROM_PAGE') {
     let fn = external_functions[event.data.function_id];
     let result = await fn(...event.data.args);
-    window.postMessage(
+    event.source.postMessage(
       {
         type: 'CUSTOM_WINDOWED_TO_PAGE',
         request_id: event.data.request_id,

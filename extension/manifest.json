@@ -28,6 +28,9 @@
       "Javascript/Background.js"
     ]
   },
+  "web_accessible_resources": [
+    "Icons/*"
+  ],
   "icons": {
     "16": "Icons/Icon_16.png",
     "32": "Icons/Icon_32.png",
