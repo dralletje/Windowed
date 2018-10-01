@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg width="128px" height="128px" viewBox="0 0 128 128" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
     <!-- Generator: Sketch 49.1 (51147) - http://www.bohemiancoding.com/sketch -->
-    <title>Icon_Windowed@scalable</title>
+    <title>Icon_Windowed_Dim@scalable</title>
     <desc>Created with Sketch.</desc>
     <defs>
         <rect id="path-1" x="62" y="60" width="65" height="55" rx="5"></rect>
     </defs>
-    <g id="Icon_Windowed" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+    <g id="Icon_Windowed_Dim" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd" opacity="0.197576993">
         <polyline id="Path-8" stroke="#000000" stroke-width="12.5" stroke-linejoin="round" points="105 54.1639642 105 20 7 20 7 98 56.0209166 98"></polyline>
         <g id="Rectangle-2">
             <use fill="#000000" fill-rule="evenodd" xlink:href="#path-1"></use>

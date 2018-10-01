@@ -197,18 +197,22 @@ const code_to_insert_in_page = on_webpage`{
   }}
 
   let create_popup = ${async () => {
-    create_style_rule();
     clear_popup();
 
     let is_fullscreen = await external_function_parent('is_fullscreen')();
-
     if (is_fullscreen) {
       await go_out_of_fullscreen();
       return 'EXIT';
     }
 
-    let top_vs_bottom = last_click_y < 300 ? 'translateY(0px)' : 'translateY(-100%)';
-    let left_vs_right = last_click_x < 300 ? 'translateX(0px)' : 'translateX(-100%)';
+    let is_enabled = await send_chrome_message({ type: 'is_windowed_enabled' });
+    if (is_enabled === false) {
+      return 'NOT_ENABLED';
+    }
+
+    create_style_rule();
+    let top_vs_bottom = last_click_y < (window.innerHeight / 2) ? 'translateY(0px)' : 'translateY(-100%)';
+    let left_vs_right = last_click_x < (window.innerWidth / 2) ? 'translateX(0px)' : 'translateX(-100%)';
 
     let popup = createElementFromHTML(`
       <div class="${popup_class}" style="
@@ -324,6 +328,9 @@ const code_to_insert_in_page = on_webpage`{
       await make_tab_go_fullscreen();
     } else {
       let next = await create_popup();
+      if (next === 'NOT_ENABLED') {
+        original();
+      }
     }
   }
 
@@ -356,7 +363,7 @@ const code_to_insert_in_page = on_webpage`{
     if (frame != null && message.data) {
       if (message.data.type === 'enter_fullscreen_iframe') {
         // Call my requestFullscreen on the element
-        requestFullscreen.call(frame, null, true);
+        requestFullscreen.call(frame, original_requestFullscreen.bind(frame), true);
       }
       if (message.data.type === 'exit_fullscreen_iframe') {
         // Call my exitFullscreen on the document
@@ -537,9 +544,18 @@ const parent_elements = function*(element) {
 };
 
 let send_chrome_message = (message) => {
-  return new Promise((resolve) => {
-    chrome.runtime.sendMessage(message, () => {
-      resolve();
+  return new Promise((resolve, reject) => {
+    chrome.runtime.sendMessage(message, (x) => {
+      if (x == null) {
+        console.warn(`WINDOWED: Weird`);
+        return null;
+      }
+
+      if (x.type === 'resolve') {
+        resolve(x.value);
+      } else {
+        reject(x.value || x);
+      }
     });
   });
 };
@@ -634,6 +650,7 @@ let go_into_fullscreen = async () => {
   for (let parent_element of parent_elements(element)) {
     enable_selector(parent_element, fullscreen_parent)
   }
+  element.focus();
 
   if (window.parent !== window) {
     // Ask parent-windowed code to become fullscreen too

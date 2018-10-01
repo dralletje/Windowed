@@ -29,12 +29,35 @@ let get_window = async (id) => {
 	});
 }
 
+let get_title = (details) => {
+	return new Promise((resolve) => {
+		chrome.browserAction.getTitle(details, x => resolve(x))
+	})
+}
+
 // TODO Instead of using this static height, I can maybe "ping" the page I'm popup-izing
 // after it is done becoming a popup: then it can figure out it's position itself
 // (and check the size of it's current header itself)
 const Chrome_Popup_Menubar_Height = 22; // Do `window.outerHeight - window.innerHeight` in a popup tab
 
-chrome.runtime.onMessage.addListener(async (request, sender, response_fn) => {
+let chrome_response = (fn) => (request, sender, response_fn) => {
+	fn(request, sender)
+	.then(x => {
+		response_fn({ type: 'resolve', value: x });
+	})
+	.catch(err => {
+		response_fn({ type: 'reject', value: err });
+	})
+
+	return true;
+}
+
+chrome.runtime.onMessage.addListener(chrome_response(async (request, sender) => {
+	if (request.type === 'is_windowed_enabled') {
+		let result = await get_title({ tabId: sender.tab.id });
+		return result === DEFAULT_BROWSERACTION_TITLE;
+	}
+
 	/*
 		Detatch the current tab and put it into a standalone popup window
 	*/
@@ -65,7 +88,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, response_fn) => {
 			height: Math.round(frame.height + Chrome_Popup_Menubar_Height),
 		});
 		// created_window.setAlwaysOnTop(true);
-		return response_fn();
+		return;
 	}
 
 	/*
@@ -90,7 +113,41 @@ chrome.runtime.onMessage.addListener(async (request, sender, response_fn) => {
 				type: 'normal',
 			});
 		}
-		return response_fn();
+		return;
+	}
+}));
+
+
+let DEFAULT_BROWSERACTION_TITLE = 'Disable Windowed on this tab';
+chrome.browserAction.setIcon({
+	path: '/Images/Icon_Windowed@scalable.svg',
+});
+chrome.browserAction.setTitle({
+	title: DEFAULT_BROWSERACTION_TITLE,
+})
+chrome.browserAction.onClicked.addListener(async (tab) => {
+	let result = await get_title({ tabId: tab.id });
+
+	if (result === DEFAULT_BROWSERACTION_TITLE) {
+		chrome.browserAction.setIcon({
+			tabId: tab.id,
+			path: '/Images/Icon_Windowed_Dim@scalable.svg',
+		});
+		chrome.browserAction.setTitle({
+			tabId: tab.id,
+			title: 'Windowed disabled, click to re-activate',
+		})
+	  // chrome.tabs.sendMessage(tab.id, { type: 'change-window-enabled', enabled: false });
+	} else {
+		chrome.browserAction.setIcon({
+			tabId: tab.id,
+			path: '/Images/Icon_Windowed@scalable.svg',
+		});
+		chrome.browserAction.setTitle({
+			tabId: tab.id,
+			title: DEFAULT_BROWSERACTION_TITLE,
+		})
+		// chrome.tabs.sendMessage(tab.id, { type: 'change-window-enabled', enabled: true });
 	}
 });
 

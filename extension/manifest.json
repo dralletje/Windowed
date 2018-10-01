@@ -6,11 +6,12 @@
     "name": "Michiel Dral",
     "url": "https://dral.eu/"
   },
-  "version": "16",
+  "version": "17",
   "manifest_version": 2,
   "permissions": [
     "tabs","<all_urls>"
   ],
+  "browser_action": {},
   "content_scripts": [
     {
       "run_at": "document_start",
