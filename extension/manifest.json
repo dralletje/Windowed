@@ -27,7 +27,8 @@
     "scripts": [
       "Javascript/browser-polyfill.min.js",
       "Javascript/Background.js"
-    ]
+    ],
+    "persistent": false
   },
   "web_accessible_resources": [
     "Images/*"
