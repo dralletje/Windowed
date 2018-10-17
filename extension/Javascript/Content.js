@@ -220,58 +220,96 @@ const code_to_insert_in_page = on_webpage`{
     }
 
     create_style_rule();
-    let top_vs_bottom =
-      last_click_y < window.innerHeight / 2
-        ? 'translateY(0px)'
-        : 'translateY(-100%)';
-    let left_vs_right =
-      last_click_x < window.innerWidth / 2
-        ? 'translateX(0px)'
-        : 'translateX(-100%)';
 
-    let popup = createElementFromHTML(`
-      <div class="${popup_class}" style="
-        position: absolute;
-        top: ${last_click_y}px;
-        left: ${last_click_x}px;
-        transform: ${top_vs_bottom} ${left_vs_right};
-        background-color: white;
-        border-radius: 3px;
-        border: solid #eee 1px;
-        box-shadow: 0px 2px 4px #00000026;
-        padding-top: 5px;
-        padding-bottom: 5px;
-        font-size: 16px;
-        color: black;
-        min-width: 150px;
-        z-index: ${max_z_index};
-      ">
-        <div data-target="windowed">
-          <img
-            src="${chrome.extension.getURL(
-              'Images/Icon_Windowed@scalable.svg'
-            )}"
-          />
-          <span>Windowed</span>
+    let clicked_element_still_exists = last_click_y != null && last_click_x != null && document.elementsFromPoint(last_click_x, last_click_y).includes(last_click_element)
+    if (clicked_element_still_exists && Date.now() - last_click_timestamp < 1000) {
+      let top_vs_bottom =
+        last_click_y < window.innerHeight / 2
+          ? 'translateY(0px)'
+          : 'translateY(-100%)';
+      let left_vs_right =
+        last_click_x < window.innerWidth / 2
+          ? 'translateX(0px)'
+          : 'translateX(-100%)';
+
+      let popup = createElementFromHTML(`
+        <div class="${popup_class}" style="
+          position: absolute;
+          top: ${last_click_y}px;
+          left: ${last_click_x}px;
+          transform: ${top_vs_bottom} ${left_vs_right};
+        ">
+          <div data-target="windowed">
+            <img
+              src="${chrome.extension.getURL(
+                'Images/Icon_Windowed@scalable.svg'
+              )}"
+            />
+            <span>Windowed</span>
+          </div>
+          <div data-target="fullscreen">
+            <img
+              src="${chrome.extension.getURL(
+                'Images/Icon_EnterFullscreen@scalable.svg'
+              )}"
+            />
+            <span>Fullscreen</span>
+          </div>
         </div>
-        <div data-target="fullscreen">
-          <img
-            src="${chrome.extension.getURL(
-              'Images/Icon_EnterFullscreen@scalable.svg'
-            )}"
-          />
-          <span>Fullscreen</span>
+      `);
+      document.body.appendChild(popup);
+      last_popup = popup;
+    } else {
+      let popup = createElementFromHTML(`
+        <div>
+          <div
+            style="
+              position: fixed;
+              top: 0; left: 0;
+              right: 0; bottom: 0;
+              background-color: rgba(0,0,0,.8);
+              pointer-events: none;
+              z-index: ${max_z_index};
+            "
+          ></div>
+
+          <div class="${popup_class}" style="
+            position: fixed;
+            top: 25vh;
+            left: 50vw;
+            transform: translateX(-50%) translateY(-50%);
+            font-size: 20px;
+          ">
+            <div style="padding: 1.25em; padding-bottom: 0.25em; padding-top: 0.25em">Enter fullscreen</div>
+            <div style="height: 10px"></div>
+            <div data-target="windowed">
+              <img
+                src="${chrome.extension.getURL(
+                  'Images/Icon_Windowed@scalable.svg'
+                )}"
+              />
+              <span>Windowed</span>
+            </div>
+            <div data-target="fullscreen">
+              <img
+                src="${chrome.extension.getURL(
+                  'Images/Icon_EnterFullscreen@scalable.svg'
+                )}"
+              />
+              <span>Fullscreen</span>
+            </div>
+          </div>
         </div>
-      </div>
-    `);
-    document.body.appendChild(popup);
-    last_popup = popup;
+      `);
+      document.body.appendChild(popup);
+      last_popup = popup;
+    }
 
     let result = await new Promise((resolve) => {
-      for (let button of document.querySelectorAll(`.${popup_class} > div`)) {
+      for (let button of document.querySelectorAll(`.${popup_class} [data-target]`)) {
         button.addEventListener(
           'click',
-          () => {
+          (e) => {
             resolve(button.dataset.target);
           },
           {
@@ -537,11 +575,24 @@ let create_style_rule = () => {
       /* background-color: rgb(113, 0, 180); */
     }
 
-    .${popup_class} > div {
+    .${popup_class} {
+      background-color: white;
+      border-radius: 3px;
+      border: solid #eee 1px;
+      box-shadow: 0px 2px 4px #00000026;
+      padding-top: 5px;
+      padding-bottom: 5px;
+      font-size: 16px;
+      color: black;
+      min-width: 150px;
+      z-index: ${max_z_index};
+    }
+
+    .${popup_class} [data-target] {
       cursor: pointer;
-      padding: 20px;
-      padding-top: 4px;
-      padding-bottom: 4px;
+      padding: 1.25em;
+      padding-top: 0.25em;
+      padding-bottom: 0.25em;
       background-color: white;
 
       display: flex;
@@ -549,12 +600,12 @@ let create_style_rule = () => {
       align-items: center;
     }
 
-    .${popup_class} > div > img {
-      height: 19px;
-      margin-right: 16px;
+    .${popup_class} [data-target] > img {
+      height: 1.2em;
+      margin-right: 1em;
     }
 
-    .${popup_class} > div:hover {
+    .${popup_class} [data-target]:hover {
       filter: brightness(0.9);
     }
   `;
@@ -607,6 +658,9 @@ let send_chrome_message = (message) => {
 
 let last_click_x = null;
 let last_click_y = null;
+let last_click_timestamp = 0;
+let last_click_element = null
+
 let last_popup = null;
 let is_in_fullscreen = false;
 
@@ -616,13 +670,24 @@ let clear_popup = () => {
       document.body.removeChild(last_popup);
     } catch (err) {}
     last_popup = null;
+    return true;
   }
+  return false
 };
 
 document.onclick = function(e) {
   last_click_x = e.pageX;
   last_click_y = e.pageY;
-  clear_popup();
+  last_click_timestamp = Date.now();
+  last_click_element = e.target;
+
+  if (last_popup != null && (e.target === last_popup || last_popup.contains(e.target))){
+    // Clicked inside popup
+  } else {
+    if (clear_popup()) {
+      send_fullscreen_events();
+    }
+  }
 };
 
 let exit_fullscreen_on_page = () => {
@@ -676,7 +741,7 @@ let go_into_fullscreen = async () => {
   }
 
   let escape_listener = (e) => {
-    if (!e.defaultPrevented && e.which === 72) {
+    if (!e.defaultPrevented && e.which === 27) {
       exit_fullscreen_on_page();
     }
   };

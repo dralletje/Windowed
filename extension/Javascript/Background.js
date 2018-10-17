@@ -58,7 +58,6 @@ let chrome_response = (fn) => (request, sender, response_fn) => {
 chrome.runtime.onMessage.addListener(
   chrome_response(async (request, sender) => {
     if (request.type === 'is_windowed_enabled') {
-      console.log(`sender:`, sender);
       let result = await get_title({ tabId: sender.tab.id });
       return result === DEFAULT_BROWSERACTION_TITLE;
     }
@@ -92,7 +91,7 @@ chrome.runtime.onMessage.addListener(
       const created_window = await browser.windows.create({
         tabId: sender.tab.id,
         type: 'popup',
-				focused: true,
+        focused: true,
         left: Math.round(screenLeft + frame.left),
         top: Math.round(screenTop + frame.top - Chrome_Popup_Menubar_Height),
         width: Math.round(frame.width),

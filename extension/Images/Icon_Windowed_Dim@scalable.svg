@@ -4,13 +4,18 @@
     <title>Icon_Windowed_Dim@scalable</title>
     <desc>Created with Sketch.</desc>
     <defs>
-        <rect id="path-1" x="62" y="60" width="65" height="55" rx="5"></rect>
+        <polyline id="path-1" points="102 61.0979674 102 30 13 30 13 101 57.5189957 101"></polyline>
+        <rect id="path-2" x="63" y="66" width="59" height="50" rx="5"></rect>
     </defs>
-    <g id="Icon_Windowed_Dim" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd" opacity="0.197576993">
-        <polyline id="Path-8" stroke="#000000" stroke-width="12.5" stroke-linejoin="round" points="105 54.1639642 105 20 7 20 7 98 56.0209166 98"></polyline>
+    <g id="Icon_Windowed_Dim" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd" opacity="0.219542572">
+        <g id="Path-8" stroke-linejoin="round">
+            <use stroke="#FFFFFF" stroke-width="24.5" fill="#FFFFFF" fill-rule="evenodd" xlink:href="#path-1"></use>
+            <use stroke="#000000" stroke-width="12.5" xlink:href="#path-1"></use>
+        </g>
         <g id="Rectangle-2">
-            <use fill="#000000" fill-rule="evenodd" xlink:href="#path-1"></use>
-            <rect stroke="#000000" stroke-width="10" x="67" y="65" width="55" height="45" rx="5"></rect>
+            <use fill="#000000" fill-rule="evenodd" xlink:href="#path-2"></use>
+            <rect stroke="#000000" stroke-width="10" x="68" y="71" width="49" height="40" rx="5"></rect>
+            <rect stroke="#FFFFFF" stroke-width="6" x="60" y="63" width="65" height="56" rx="5"></rect>
         </g>
     </g>
 </svg>
