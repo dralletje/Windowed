@@ -21,50 +21,36 @@ const get_fallback_window = async (windowId) => {
   }
 };
 
-let get_window = async (id) => {
-  return new Promise((resolve) => {
-    chrome.windows.get(id, (window) => {
-      resolve(window);
-    });
-  });
-};
-
-let get_title = (details) => {
-  return new Promise((resolve) => {
-    chrome.browserAction.getTitle(details, (x) => resolve(x));
-  });
-};
-
 // TODO Instead of using this static height, I can maybe "ping" the page I'm popup-izing
 // after it is done becoming a popup: then it can figure out it's position itself
 // (and check the size of it's current header itself)
 const Chrome_Popup_Menubar_Height = 22; // Do `window.outerHeight - window.innerHeight` in a popup tab
 
-let chrome_response = (fn) => (request, sender, response_fn) => {
-  fn(request, sender)
-    .then((x) => {
-      response_fn({ type: 'resolve', value: x });
-    })
-    .catch((err) => {
-      response_fn({
-        type: 'reject',
-        value: { message: err.message, stack: err.stack },
-      });
-    });
-
-  return true;
+let chrome_response = (fn) => async (request, sender, response_fn) => {
+  try {
+    let result = await fn(request, sender)
+    return { type: 'resolve', value: result };
+  } catch (err) {
+    return {
+      type: 'reject',
+      value: { message: err.message, stack: err.stack },
+    };
+  }
 };
+let is_disabled = async (tab) => {
+  let host = (new URL(tab.url)).host
+  let disabled = await browser.storage.sync.get([host]);
+  return disabled[host] === true;
+}
 
-chrome.runtime.onMessage.addListener(
+browser.runtime.onMessage.addListener(
   chrome_response(async (request, sender) => {
     if (request.type === 'is_windowed_enabled') {
-      let result = await get_title({ tabId: sender.tab.id });
-      return result === DEFAULT_BROWSERACTION_TITLE;
+      let disabled = await is_disabled(sender.tab);
+      return !disabled;
     }
 
-    /*
-		Detatch the current tab and put it into a standalone popup window
-	*/
+    // Detatch the current tab and put it into a standalone popup window
     if (request.type === 'please_make_me_a_popup') {
       // TODO Save windowId and index inside that window,
       // so when you "pop" it back, it will go where you opened it
@@ -72,7 +58,7 @@ chrome.runtime.onMessage.addListener(
         left: screenLeft,
         top: screenTop,
         type: windowType,
-      } = await get_window(sender.tab.windowId);
+      } = await browser.windows.get(sender.tab.windowId);
 
       // TODO Check possible 'panel' support in firefox
       if (windowType === 'popup') {
@@ -127,43 +113,60 @@ chrome.runtime.onMessage.addListener(
     }
   })
 );
-
-let DEFAULT_BROWSERACTION_TITLE = 'Disable Windowed on this tab';
-chrome.runtime.onInstalled.addListener(() => {
-  chrome.browserAction.setIcon({
-    path: '/Images/Icon_Windowed@scalable.svg',
-  });
-  chrome.browserAction.setTitle({
-    title: DEFAULT_BROWSERACTION_TITLE,
-  });
-});
-
-chrome.browserAction.onClicked.addListener(async (tab) => {
-  let result = await get_title({ tabId: tab.id });
-
-  if (result === DEFAULT_BROWSERACTION_TITLE) {
-    chrome.browserAction.setIcon({
+let update_button_on_tab = async (tab) => {
+  let host = (new URL(tab.url)).host;
+  if (await is_disabled(tab)) {
+    await browser.browserAction.setIcon({
       tabId: tab.id,
       path: '/Images/Icon_Windowed_Dim@scalable.svg',
     });
-    chrome.browserAction.setTitle({
+    await browser.browserAction.setTitle({
       tabId: tab.id,
-      title: 'Windowed disabled, click to re-activate',
+      title: `Windowed is disabled on ${host}, click to re-activate`,
     });
-    // chrome.tabs.sendMessage(tab.id, { type: 'change-window-enabled', enabled: false });
   } else {
-    chrome.browserAction.setIcon({
+    await browser.browserAction.setIcon({
       tabId: tab.id,
       path: '/Images/Icon_Windowed@scalable.svg',
     });
-    chrome.browserAction.setTitle({
+    await browser.browserAction.setTitle({
       tabId: tab.id,
-      title: DEFAULT_BROWSERACTION_TITLE,
+      title: `Windowed is enabled on ${host}, click to disable`,
     });
+  }
+}
+
+browser.runtime.onInstalled.addListener(async () => {
+  let all_tabs = await browser.tabs.query({});
+  for (let tab of all_tabs) {
+    update_button_on_tab(tab);
+  }
+});
+browser.tabs.onUpdated.addListener(async (tabId, changed, tab) => {
+  if (changed.url != null) {
+    await update_button_on_tab(tab);
+  }
+});
+browser.browserAction.onClicked.addListener(async (tab) => {
+  let host = (new URL(tab.url)).host
+  if (await is_disabled(tab)) {
+    await browser.storage.sync.remove([host]);
+  } else {
+    await browser.storage.sync.set({
+      [host]: true,
+    });
+  }
+  await update_button_on_tab(tab);
+
+  let tabs_with_same_host = await browser.tabs.query({
+    url: `*://${host}/*`,
+  })
+  for (let tab_with_same_host of tabs_with_same_host) {
+    await update_button_on_tab(tab_with_same_host);
   }
 });
 
-// TODO Chance CSP headers on firefox to allow script injection?
+// TODO Change CSP headers on firefox to allow script injection?
 // browser.webRequest.onBeforeRequest.addListener(request => {
 // 	console.log('HEY~', request);
 // 	var headers = details.responseHeaders;

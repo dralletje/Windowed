@@ -9,8 +9,10 @@
   "version": "18",
   "manifest_version": 2,
   "permissions": [
+    "storage",
     "tabs","<all_urls>"
   ],
+  "incognito": "split",
   "browser_action": {},
   "content_scripts": [
     {
