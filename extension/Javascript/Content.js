@@ -757,14 +757,14 @@ let go_into_fullscreen = async () => {
     let menubar_size = window.outerHeight - window.innerHeight; // Asumme there is just header, no browser footer
     let rect = element.getBoundingClientRect();
 
-    // rect.width
-    let ratio_width = Math.min(rect.height / 9 * 16, rect.width); // 16:9
+    let height = Math.max(350, rect.height);
+    let ratio_width = Math.min(height / 9 * 16, rect.width); // 16:9
     let width_diff = rect.width - ratio_width;
 
     await send_chrome_message({
       type: 'please_make_me_a_popup',
       position: {
-        height: rect.height,
+        height: height,
         width: ratio_width,
         top: rect.top + menubar_size,
         left: rect.left + width_diff / 2,
