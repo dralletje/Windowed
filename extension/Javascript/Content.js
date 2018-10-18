@@ -214,8 +214,10 @@ const code_to_insert_in_page = on_webpage`{
       return 'EXIT';
     }
 
-    let is_enabled = await send_chrome_message({ type: 'is_windowed_enabled' });
-    if (is_enabled === false) {
+    let host = window.location.host;
+    let disabled = await browser.storage.sync.get([host]);
+    // let is_enabled = await send_chrome_message({ type: 'is_windowed_enabled' });
+    if (disabled[host] === true) {
       return 'NOT_ENABLED';
     }
 
@@ -241,7 +243,7 @@ const code_to_insert_in_page = on_webpage`{
         ">
           <div data-target="windowed">
             <img
-              src="${chrome.extension.getURL(
+              src="${browser.extension.getURL(
                 'Images/Icon_Windowed@scalable.svg'
               )}"
             />
@@ -249,7 +251,7 @@ const code_to_insert_in_page = on_webpage`{
           </div>
           <div data-target="fullscreen">
             <img
-              src="${chrome.extension.getURL(
+              src="${browser.extension.getURL(
                 'Images/Icon_EnterFullscreen@scalable.svg'
               )}"
             />
@@ -284,7 +286,7 @@ const code_to_insert_in_page = on_webpage`{
             <div style="height: 10px"></div>
             <div data-target="windowed">
               <img
-                src="${chrome.extension.getURL(
+                src="${browser.extension.getURL(
                   'Images/Icon_Windowed@scalable.svg'
                 )}"
               />
@@ -292,7 +294,7 @@ const code_to_insert_in_page = on_webpage`{
             </div>
             <div data-target="fullscreen">
               <img
-                src="${chrome.extension.getURL(
+                src="${browser.extension.getURL(
                   'Images/Icon_EnterFullscreen@scalable.svg'
                 )}"
               />
@@ -623,37 +625,20 @@ const parent_elements = function*(element) {
   }
 };
 
-let send_chrome_message = (message) => {
-  return new Promise((resolve, reject) => {
-    try {
-      // let stack = (new Error()).stack.split('\n').slice(1);
-      chrome.runtime.sendMessage(message, (x) => {
-        if (x == null) {
-          console.warn(`WINDOWED: Weird`);
-          return null;
-        }
-
-        if (x.type === 'resolve') {
-          resolve(x.value);
-        } else {
-          if (x.value) {
-            let err = new Error(x.value.message);
-            err.stack = x.value.stack;
-            // err.stack = [
-            //   ...x.value.stack.split('\n'),
-            //   'From postMessage to background page',
-            //   ...stack,
-            // ].join('\n');
-            reject(err);
-          } else {
-            reject(x);
-          }
-        }
-      });
-    } catch (err) {
-      reject(err);
-    }
-  });
+let send_chrome_message = async (message) => {
+  let { type, value } = await browser.runtime.sendMessage(message);
+  if (type === 'resolve') {
+    return value;
+  } else {
+    let err = new Error(x.value.message);
+    err.stack = x.value.stack;
+    // err.stack = [
+    //   ...x.value.stack.split('\n'),
+    //   'From postMessage to background page',
+    //   ...stack,
+    // ].join('\n');
+    throw err;
+  }
 };
 
 let last_click_x = null;

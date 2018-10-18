@@ -21,7 +21,10 @@
         "http://*/*",
         "https://*/*"
       ],
-      "js": ["Javascript/Content.js"],
+      "js": [
+        "Javascript/browser-polyfill.min.js",
+        "Javascript/Content.js"
+      ],
       "all_frames": true
     }
   ],
