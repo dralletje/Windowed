@@ -821,10 +821,10 @@ let go_into_fullscreen = async () => {
     window.parent.postMessage({ type: 'enter_fullscreen_iframe' }, '*');
   } else {
     // Send popup command to extension
-    let menubar_size = window.outerHeight - window.innerHeight; // Asumme there is just header, no browser footer
-    let rect = element.getBoundingClientRect();
+    let menubar_size = window.outerHeight - window.innerHeight; // Asume there is just header, no browser footer
 
-    let height = Math.max(350, rect.height);
+    let rect = element.getBoundingClientRect();
+    let height = Math.max(rect.width * 9 / 16, rect.height);
     let ratio_width = Math.min(height / 9 * 16, rect.width); // 16:9
     let width_diff = rect.width - ratio_width;
 
