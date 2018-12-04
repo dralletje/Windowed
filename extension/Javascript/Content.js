@@ -204,6 +204,9 @@ const code_to_insert_in_page = on_webpage`{
   let make_tab_go_fullscreen = ${async () => {
     await go_into_fullscreen();
   }}
+  let make_tab_go_inwindow = ${async () => {
+    await go_in_window();
+  }}
 
   let create_popup = ${async () => {
     clear_popup();
@@ -249,6 +252,14 @@ const code_to_insert_in_page = on_webpage`{
             />
             <span>Windowed</span>
           </div>
+          <div data-target="in-window">
+            <img
+              src="${browser.extension.getURL(
+                'Images/Icon_InWindow_Mono@scalable.svg'
+              )}"
+            />
+            <span>In-window</span>
+          </div>
           <div data-target="fullscreen">
             <img
               src="${browser.extension.getURL(
@@ -291,6 +302,14 @@ const code_to_insert_in_page = on_webpage`{
                 )}"
               />
               <span>Windowed</span>
+            </div>
+            <div data-target="in-window">
+              <img
+                src="${browser.extension.getURL(
+                  'Images/Icon_InWindow_Mono@scalable.svg'
+                )}"
+              />
+              <span>In-window</span>
             </div>
             <div data-target="fullscreen">
               <img
@@ -338,6 +357,10 @@ const code_to_insert_in_page = on_webpage`{
       await go_into_fullscreen();
       return 'WINDOWED';
     }
+    if (result === 'in-window') {
+      await go_in_window();
+      return 'IN-WINDOW';
+    }
     if (result === 'exit') {
       await go_out_of_fullscreen();
       return 'EXIT';
@@ -374,26 +397,22 @@ const code_to_insert_in_page = on_webpage`{
   }
 
   ${'' /* NOTE requestFullscreen */}
-  const requestFullscreen = async function(original, force, ...args) {
+  const requestFullscreen = async function(original, ...args) {
     const element = this;
     element.dataset['${fullscreen_select}'] = true;
 
     // Tell extension code (outside of this block) to go into fullscreen
     // window.postMessage({ type: force ? "enter_fullscreen" : "show_fullscreen_popup" }, "*");
     // send_windowed_event(element, force ? "enter_fullscreen" : "show_fullscreen_popup");
-    if (force) {
-      await make_tab_go_fullscreen();
-    } else {
-      try {
-        let next = await create_popup();
-        if (next === 'NOT_ENABLED') {
-          original();
-        }
-      } catch (err) {
-        // Anything gone wrong, we default to normal fullscreen
-        console.error('[Windowed] Something went wrong, so I default to normal fullscreen:', err.stack);
+    try {
+      let next = await create_popup();
+      if (next === 'NOT_ENABLED') {
         original();
       }
+    } catch (err) {
+      // Anything gone wrong, we default to normal fullscreen
+      console.error('[Windowed] Something went wrong, so I default to normal fullscreen:', err.stack);
+      original();
     }
   }
 
@@ -430,9 +449,13 @@ const code_to_insert_in_page = on_webpage`{
     }
 
     if (frame != null && message.data) {
+      if (message.data.type === 'enter_inwindow_iframe') {
+        frame.dataset['${fullscreen_select}'] = true;
+        make_tab_go_inwindow();
+      }
       if (message.data.type === 'enter_fullscreen_iframe') {
-        // Call my requestFullscreen on the element
-        requestFullscreen.call(frame, original_requestFullscreen.bind(frame), true);
+        frame.dataset['${fullscreen_select}'] = true;
+        make_tab_go_fullscreen();
       }
       if (message.data.type === 'exit_fullscreen_iframe') {
         // Call my exitFullscreen on the document
@@ -577,6 +600,11 @@ let create_style_rule = () => {
       /* background-color: rgb(113, 0, 180); */
     }
 
+    /* I know I want it to be generic, but still this is a youtube specific fix */
+    [data-${body_class}] #player-theater-container {
+      min-height: 0 !important;
+    }
+
     .${popup_class} {
       background-color: white;
       border-radius: 3px;
@@ -689,6 +717,45 @@ let createElementFromHTML = (htmlString) => {
   div.innerHTML = htmlString.trim();
   return div.firstChild;
 };
+
+let go_in_window = async () => {
+  create_style_rule();
+  clear_listeners();
+  let element = document.querySelector(`[data-${fullscreen_select}]`);
+
+  let escape_listener = (e) => {
+    if (!e.defaultPrevented && e.which === 27) {
+      exit_fullscreen_on_page();
+    }
+  };
+  window.addEventListener('keyup', escape_listener);
+
+  let beforeunload_listener = (e) => {
+    exit_fullscreen_on_page();
+  };
+  window.addEventListener('beforeunload', beforeunload_listener);
+
+  clear_listeners = () => {
+    window.removeEventListener('keyup', escape_listener);
+    window.removeEventListener('beforeunload', beforeunload_listener);
+  };
+
+  enable_selector(element, fullscreen_active);
+  // Add fullscreen class to every parent of our fullscreen element
+  for (let parent_element of parent_elements(element)) {
+    enable_selector(parent_element, fullscreen_parent);
+  }
+
+  if (window.parent !== window) {
+    // Ask parent-windowed code to become fullscreen too
+    window.parent.postMessage({ type: 'enter_inwindow_iframe' }, '*');
+  }
+
+  window.postMessage({ type: 'WINDOWED-confirm-fullscreen' }, '*');
+
+  // Add no scroll to the body and let everything kick in
+  enable_selector(document.body, body_class);
+}
 
 let go_into_fullscreen = async () => {
   create_style_rule();

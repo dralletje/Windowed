@@ -10,6 +10,7 @@ const get_fallback_window = async (windowId) => {
   } else {
     const windows = await browser.windows.getAll({ windowTypes: ['normal'] });
     const right_window = windows
+      .filter(x => is_valid_window(x))
       .filter((x) => x.id !== windowId)
       .sort((a, b) => a.tabs.length - b.tabs.length)[0];
 
@@ -94,7 +95,14 @@ browser.runtime.onMessage.addListener(
 		3. New window we create
 	*/
     if (request.type === 'please_make_me_a_tab_again') {
-      const fallback_window = await get_fallback_window(sender.tab.windowId);
+      let {
+        type: windowType,
+      } = await browser.windows.get(sender.tab.windowId);
+      if (windowType === 'normal') {
+        return;
+      }
+
+      let fallback_window = await get_fallback_window(sender.tab.windowId);
 
       if (fallback_window) {
         await browser.tabs.move(sender.tab.id, {
@@ -105,6 +113,7 @@ browser.runtime.onMessage.addListener(
       } else {
         // No other window open: create a new window with tabs
         const create_window_with_tabs = await browser.windows.create({
+        let create_window_with_tabs = await browser.windows.create({
           tabId: sender.tab.id,
           type: 'normal',
         });
