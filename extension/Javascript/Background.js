@@ -1,3 +1,11 @@
+let is_valid_window = (window) => {
+  return (
+    window.incognito === false
+    && window.type === 'normal'
+    && window.state !== 'minimized'
+  );
+}
+
 // Get a window to put our tab on: either the last focussed, a random, or none;
 // In case of none being found, null is returned and the caller should make a new window himself (with the tab attached)
 const get_fallback_window = async (windowId) => {
@@ -5,7 +13,7 @@ const get_fallback_window = async (windowId) => {
     windowTypes: ['normal'],
   });
 
-  if (first_fallback_window.id !== windowId) {
+  if (first_fallback_window.id !== windowId && is_valid_window(first_fallback_window)) {
     return first_fallback_window;
   } else {
     const windows = await browser.windows.getAll({ windowTypes: ['normal'] });
@@ -112,7 +120,6 @@ browser.runtime.onMessage.addListener(
         await browser.tabs.update(sender.tab.id, { active: true });
       } else {
         // No other window open: create a new window with tabs
-        const create_window_with_tabs = await browser.windows.create({
         let create_window_with_tabs = await browser.windows.create({
           tabId: sender.tab.id,
           type: 'normal',
