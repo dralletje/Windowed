@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="128px" height="128px" viewBox="0 0 128 128" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 52.5 (67469) - http://www.bohemiancoding.com/sketch -->
+    <title>Icon_Windowed_Error@scalable</title>
+    <desc>Created with Sketch.</desc>
+    <defs>
+        <polyline id="path-1" points="102 61.0979674 102 30 13 30 13 101 57.5189957 101"></polyline>
+        <path d="M68,66 L117,66 C119.761424,66 122,68.2385763 122,71 L122,111 C122,113.761424 119.761424,116 117,116 L68,116 C65.2385763,116 63,113.761424 63,111 L63,71 C63,68.2385763 65.2385763,66 68,66 Z" id="path-2"></path>
+    </defs>
+    <g id="Icon_Windowed_Error" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="Path-8" stroke-linejoin="round">
+            <use stroke="#FFFFFF" stroke-width="24.5" fill="#FFFFFF" fill-rule="evenodd" xlink:href="#path-1"></use>
+            <use stroke="#D0021B" stroke-width="12.5" xlink:href="#path-1"></use>
+        </g>
+        <g id="Rectangle-2">
+            <path stroke="#D0021B" stroke-width="10" d="M68,71 L68,111 L117,111 L117,71 L68,71 Z" stroke-linejoin="square" fill="#D0021B" fill-rule="evenodd"></path>
+            <path stroke="#FFFFFF" stroke-width="6" d="M68,63 L117,63 C121.418278,63 125,66.581722 125,71 L125,111 C125,115.418278 121.418278,119 117,119 L68,119 C63.581722,119 60,115.418278 60,111 L60,71 C60,66.581722 63.581722,63 68,63 Z"></path>
+        </g>
+    </g>
+</svg>

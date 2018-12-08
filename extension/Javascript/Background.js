@@ -1,10 +1,12 @@
+let NEED_REFRESH_TITLE = `This page needs to be reloaded for Windowed to activate. Click here to reload.`;
+
 let is_valid_window = (window) => {
   return (
-    window.incognito === false
-    && window.type === 'normal'
-    && window.state !== 'minimized'
+    window.incognito === false &&
+    window.type === 'normal' &&
+    window.state !== 'minimized'
   );
-}
+};
 
 // Get a window to put our tab on: either the last focussed, a random, or none;
 // In case of none being found, null is returned and the caller should make a new window himself (with the tab attached)
@@ -13,12 +15,15 @@ const get_fallback_window = async (windowId) => {
     windowTypes: ['normal'],
   });
 
-  if (first_fallback_window.id !== windowId && is_valid_window(first_fallback_window)) {
+  if (
+    first_fallback_window.id !== windowId &&
+    is_valid_window(first_fallback_window)
+  ) {
     return first_fallback_window;
   } else {
     const windows = await browser.windows.getAll({ windowTypes: ['normal'] });
     const right_window = windows
-      .filter(x => is_valid_window(x))
+      .filter((x) => is_valid_window(x))
       .filter((x) => x.id !== windowId)
       .sort((a, b) => a.tabs.length - b.tabs.length)[0];
 
@@ -37,7 +42,7 @@ const Chrome_Popup_Menubar_Height = 22; // Do `window.outerHeight - window.inner
 
 let chrome_response = (fn) => async (request, sender, response_fn) => {
   try {
-    let result = await fn(request, sender)
+    let result = await fn(request, sender);
     return { type: 'resolve', value: result };
   } catch (err) {
     return {
@@ -47,10 +52,10 @@ let chrome_response = (fn) => async (request, sender, response_fn) => {
   }
 };
 let is_disabled = async (tab) => {
-  let host = (new URL(tab.url)).host
+  let host = new URL(tab.url).host;
   let disabled = await browser.storage.sync.get([host]);
   return disabled[host] === true;
-}
+};
 
 browser.runtime.onMessage.addListener(
   chrome_response(async (request, sender) => {
@@ -73,7 +78,7 @@ browser.runtime.onMessage.addListener(
       if (windowType === 'popup') {
         // Already a popup, no need to re-create the window
         await browser.windows.update(sender.tab.windowId, {
-					focused: true,
+          focused: true,
           left: Math.round(screenLeft + frame.left),
           top: Math.round(screenTop + frame.top - Chrome_Popup_Menubar_Height),
           width: Math.round(frame.width),
@@ -103,9 +108,7 @@ browser.runtime.onMessage.addListener(
 		3. New window we create
 	*/
     if (request.type === 'please_make_me_a_tab_again') {
-      let {
-        type: windowType,
-      } = await browser.windows.get(sender.tab.windowId);
+      let { type: windowType } = await browser.windows.get(sender.tab.windowId);
       if (windowType === 'normal') {
         return;
       }
@@ -129,42 +132,107 @@ browser.runtime.onMessage.addListener(
     }
   })
 );
+
+let current_port_promises = {};
+let ping_content_script = async (tabId) => {
+  try {
+    if (current_port_promises[tabId] != null) {
+      return await current_port_promises[tabId];
+    } else {
+      current_port_promises[tabId] = new Promise((resolve, reject) => {
+        let port = browser.tabs.connect(tabId);
+        port.onMessage.addListener((message) => {
+          resolve(true);
+          port.disconnect();
+        });
+        port.onDisconnect.addListener((p) => {
+          resolve(false);
+        });
+      });
+      return await current_port_promises[tabId];
+    }
+  } finally {
+    delete current_port_promises[tabId];
+  }
+};
+
+let apply_browser_action = async (tabId, action) => {
+  await browser.browserAction.setIcon({
+    tabId: tabId,
+    path: action.icon,
+  });
+  await browser.browserAction.setTitle({
+    tabId: tabId,
+    title: action.title,
+  });
+};
+
 let update_button_on_tab = async (tab) => {
-  let host = (new URL(tab.url)).host;
-  if (await is_disabled(tab)) {
-    await browser.browserAction.setIcon({
-      tabId: tab.id,
-      path: '/Images/Icon_Windowed_Dim@scalable.svg',
+  let has_contentscript_active = tab.status === 'complete' && await ping_content_script(tab.id);
+
+  if (
+    has_contentscript_active === false &&
+    (tab.url.match(/^chrome:\/\//) || tab.url.match(/^https?:\/\/chrome.google.com/))
+  ) {
+    await apply_browser_action(tab.id, {
+      icon: `/Images/Icon_Windowed_Error_Dim@scalable.svg`,
+      title: 'For security reasons, windowed is not supported on this domain.',
     });
-    await browser.browserAction.setTitle({
-      tabId: tab.id,
+    return;
+  }
+
+  if (tab.status === 'complete' && has_contentscript_active === false) {
+    await apply_browser_action(tab.id, {
+      icon: `/Images/Icon_Windowed_Error@scalable.svg`,
+      title: NEED_REFRESH_TITLE,
+    });
+    return;
+  }
+
+  let host = new URL(tab.url).host;
+  if (await is_disabled(tab)) {
+    await apply_browser_action(tab.id, {
+      icon: '/Images/Icon_Windowed_Dim@scalable.svg',
       title: `Windowed is disabled on ${host}, click to re-activate`,
     });
   } else {
-    await browser.browserAction.setIcon({
-      tabId: tab.id,
-      path: '/Images/Icon_Windowed@scalable.svg',
-    });
-    await browser.browserAction.setTitle({
-      tabId: tab.id,
+    await apply_browser_action(tab.id, {
+      icon: '/Images/Icon_Windowed@scalable.svg',
       title: `Windowed is enabled on ${host}, click to disable`,
     });
   }
-}
+};
 
+// Events where I refresh the browser action button
 browser.runtime.onInstalled.addListener(async () => {
   let all_tabs = await browser.tabs.query({});
   for (let tab of all_tabs) {
-    update_button_on_tab(tab);
-  }
-});
-browser.tabs.onUpdated.addListener(async (tabId, changed, tab) => {
-  if (changed.url != null) {
     await update_button_on_tab(tab);
   }
 });
+browser.tabs.onUpdated.addListener(async (tabId, changed, tab) => {
+  if (changed.url != null || changed.status != null) {
+    await update_button_on_tab(tab);
+  }
+});
+// Not sure if I need this one -
+// only reason I need it is for when one would toggle Enabled/Disabled
+browser.tabs.onActivated.addListener(async ({ tabId }) => {
+  // let tab = await browser.tabs.get(tabId);
+  // await update_button_on_tab(tab);
+});
+
 browser.browserAction.onClicked.addListener(async (tab) => {
-  let host = (new URL(tab.url)).host
+  let title = await browser.browserAction.getTitle({
+    tabId: tab.id,
+  });
+
+  if (title === NEED_REFRESH_TITLE) {
+    browser.tabs.reload(tab.id);
+    return;
+  }
+
+  let host = new URL(tab.url).host;
   if (await is_disabled(tab)) {
     await browser.storage.sync.remove([host]);
   } else {
@@ -176,7 +244,7 @@ browser.browserAction.onClicked.addListener(async (tab) => {
 
   let tabs_with_same_host = await browser.tabs.query({
     url: `*://${host}/*`,
-  })
+  });
   for (let tab_with_same_host of tabs_with_same_host) {
     await update_button_on_tab(tab_with_same_host);
   }

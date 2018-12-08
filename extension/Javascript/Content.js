@@ -921,3 +921,7 @@ window.addEventListener('message', async (event) => {
     }
   }
 });
+
+browser.runtime.onConnect.addListener((port) => {
+  port.postMessage({ type: 'I_exists_ping' });
+})
