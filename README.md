@@ -4,7 +4,7 @@
 
 A small extension for chrome and firefox I made because I don't really like normal fullscreen. It injects itself into every page, and replaces `HTMLElement.prototype.requestFullscreen` (or the specific browser version) with a popup to get into Windowed or In-window mode.
 
-![Chromestore screenshot](Chromewebstore%20screenshot%20#1.png)
+![Chromestore screenshot](Chromewebstore%20screenshot%20%231.png)
 
 ### Why so much code
 There are actually a lot of things that the websites need when I'm fullscreen-ing them.
