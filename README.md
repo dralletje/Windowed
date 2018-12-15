@@ -1,10 +1,10 @@
-# ![Windowed Logo](extension/Icons/Icon_64.png) Windowed
+# ![Windowed Logo](extension/Icons/Icon_32.png) Windowed
 
 [Install in Chrome Webstore](https://chrome.google.com/webstore/detail/windowed-floating-youtube/gibipneadnbflmkebnmcbgjdkngkbklb)
 
 A small extension for chrome and firefox I made because I don't really like normal fullscreen. It injects itself into every page, and replaces `HTMLElement.prototype.requestFullscreen` (or the specific browser version) with a popup to get into Windowed or In-window mode.
 
-![Chromestore screenshot](Chromewebstore screenshot #1.png)
+![Chromestore screenshot](Chromewebstore%20screenshot%20#1.png)
 
 ### Why so much code
 There are actually a lot of things that the websites need when I'm fullscreen-ing them.
@@ -15,9 +15,9 @@ There are actually a lot of things that the websites need when I'm fullscreen-in
 5. Even just selecting the right window to restore the tab to after going out of windowed mode again takes more lines then you'd expect.
 
 ### Hey I got a request or even got something that might be useful
-Nice, please open an issue or a PR. That'd be really cool.
+Nice. Please open an issue or a PR. That'd be really cool. 😎
 
 ---
 
-Thanks,  
+Thanks for reading,  
 Michiel Dral
