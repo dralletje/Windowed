@@ -8,6 +8,8 @@ const body_class = `${fullscreen_id_namespace}_body`;
 
 const popup_class = `${fullscreen_id_namespace}_popup`;
 
+const native_button_overlay_class = `${fullscreen_id_namespace}_native_button_overlay`;
+
 const max_z_index = '2147483647';
 
 // Aliasses for different browsers (rest of aliasses are in the inserted script)
@@ -108,6 +110,13 @@ let enable_selector = (element, key) => {
 let disable_selector = (element, key) => {
   delete element.dataset[key];
 };
+
+let is_windowed_disabled = async () => {
+  let host = window.location.host;
+  let disabled = await browser.storage.sync.get([host]);
+  // let is_enabled = await send_chrome_message({ type: 'is_windowed_enabled' });
+  return disabled[host] === true;
+}
 
 // Insert requestFullScreen mock
 const code_to_insert_in_page = on_webpage`{
@@ -217,10 +226,7 @@ const code_to_insert_in_page = on_webpage`{
       return 'EXIT';
     }
 
-    let host = window.location.host;
-    let disabled = await browser.storage.sync.get([host]);
-    // let is_enabled = await send_chrome_message({ type: 'is_windowed_enabled' });
-    if (disabled[host] === true) {
+    if (await is_windowed_disabled()) {
       return 'NOT_ENABLED';
     }
 
@@ -311,7 +317,7 @@ const code_to_insert_in_page = on_webpage`{
               />
               <span>In-window</span>
             </div>
-            <div data-target="fullscreen">
+            <div data-target="fullscreen" onclick="">
               <img
                 src="${browser.extension.getURL(
                   'Images/Icon_EnterFullscreen@scalable.svg'
@@ -331,6 +337,13 @@ const code_to_insert_in_page = on_webpage`{
         button.addEventListener(
           'click',
           (e) => {
+            if (button.dataset.target === 'fullscreen') {
+              // I need this check here, because I can't call the original fullscreen from a
+              // 'async' function (or anywhere async (eg. after `resolve()` is called))
+              let element = document.querySelector(`[data-${fullscreen_select}]`);
+              disable_selector(element, fullscreen_select);
+              element.requestFullscreen();
+            }
             resolve(button.dataset.target);
           },
           {
@@ -343,14 +356,8 @@ const code_to_insert_in_page = on_webpage`{
     clear_popup();
 
     if (result === 'fullscreen') {
-      let element = document.querySelector(`[data-${fullscreen_select}]`);
-      disable_selector(element, fullscreen_select);
-
-      // TODO This now spawns fullscreen that returns to a separate window
-      // .... when removed, because it is opened from the extension.
-      // .... Need to open this on the original window.
-      // NOTE This is the original fullscreen (in chrome at least)
-      element.webkitRequestFullScreen();
+      // NOTE This is now all done sync in the popup callback.
+      // .... because firefox does not like it when I call it from a promise.
       return 'FULLSCREEN';
     }
     if (result === 'windowed') {
@@ -397,7 +404,7 @@ const code_to_insert_in_page = on_webpage`{
   }
 
   ${'' /* NOTE requestFullscreen */}
-  const requestFullscreen = async function(original, ...args) {
+  const requestFullscreen_windowed = async function(original, ...args) {
     const element = this;
     element.dataset['${fullscreen_select}'] = true;
 
@@ -411,8 +418,21 @@ const code_to_insert_in_page = on_webpage`{
       }
     } catch (err) {
       // Anything gone wrong, we default to normal fullscreen
+      console.error(err);
       console.error('[Windowed] Something went wrong, so I default to normal fullscreen:', err.stack);
       original();
+    }
+  }
+
+  // Because firefox is super cool, it is also super frustrating...
+  // So firefox does not allow fullscreen calls from promises, even if it is basically sync.
+  // Therefor I need to first define this as sync, and from here call the async version.
+  let MUTATE_is_windowed_enabled = true;
+  let requestFullscreen = function(original, ...args) {
+    if (MUTATE_is_windowed_enabled === false) {
+      return original()
+    } else {
+      requestFullscreen_windowed.call(this, original, ...args);
     }
   }
 
@@ -420,6 +440,10 @@ const code_to_insert_in_page = on_webpage`{
     // Because youtube actually checks for those sizes?!
     const window_width = Math.max(window.outerWidth, window.innerWidth);
     const window_height = Math.max(window.outerHeight, window.innerHeight);
+
+    console.log('window_width:', window_width);
+    console.log('window_height:', window_height);
+
     overwrite(window.screen, 'width', window_width);
     overwrite(window.screen, 'height', window_height);
 
@@ -429,6 +453,7 @@ const code_to_insert_in_page = on_webpage`{
       return;
     }
 
+    document.body.focus();
     element.focus();
     set_fullscreen_element(element || document.body);
     send_fullscreen_events();
@@ -441,10 +466,13 @@ const code_to_insert_in_page = on_webpage`{
       if (message.data && message.data.type === 'WINDOWED-confirm-fullscreen') {
         finish_fullscreen();
       }
-    }
-    if (frame || window.parent === message.source || message.target === message.source) {
+
       if (message.data && message.data.type === 'WINDOWED-exit-fullscreen') {
         exitFullscreen.call(document, original_exitFullscreen);
+      }
+
+      if (message.data && message.data.type === 'WINDOWED-notify') {
+        MUTATE_is_windowed_enabled = !message.data.disabled;
       }
     }
 
@@ -638,6 +666,22 @@ let create_style_rule = () => {
     .${popup_class} [data-target]:hover {
       filter: brightness(0.9);
     }
+
+    [data-${native_button_overlay_class}] {
+      width: 40px;
+      height: 40px;
+
+      background-color: transparent;
+
+      position: absolute;
+      bottom: 90px;
+      right: 90px;
+      z-index: 2147483647;
+    }
+
+    [data-${body_class}] [data-${native_button_overlay_class}] {
+      bottom: 40px;
+    }
   `;
 
   let styleEl = document.createElement('style');
@@ -658,8 +702,8 @@ let send_chrome_message = async (message) => {
   if (type === 'resolve') {
     return value;
   } else {
-    let err = new Error(x.value.message);
-    err.stack = x.value.stack;
+    let err = new Error(value.message);
+    err.stack = value.stack;
     // err.stack = [
     //   ...x.value.stack.split('\n'),
     //   'From postMessage to background page',
@@ -922,6 +966,18 @@ window.addEventListener('message', async (event) => {
   }
 });
 
-browser.runtime.onConnect.addListener((port) => {
+let check_disabled_state = async () => {
+  try {
+    let disabled = await is_windowed_disabled();
+    window.postMessage({ type: 'WINDOWED-notify', disabled: disabled }, '*');
+  } catch (err) {
+    console.log(`err:`, err)
+  }
+};
+
+check_disabled_state();
+
+browser.runtime.onConnect.addListener(async (port) => {
   port.postMessage({ type: 'I_exists_ping' });
-})
+  check_disabled_state();
+});

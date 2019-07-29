@@ -1,5 +1,8 @@
 let NEED_REFRESH_TITLE = `This page needs to be reloaded for Windowed to activate. Click here to reload.`;
 
+let browser_info_promise = browser.runtime.getBrowserInfo ? browser.runtime.getBrowserInfo() : Promise.resolve({ name: 'Chrome' })
+let is_firefox = browser_info_promise.then(browser_info => browser_info.name === 'Firefox');
+
 let is_valid_window = (window) => {
   return (
     window.incognito === false &&
@@ -7,6 +10,16 @@ let is_valid_window = (window) => {
     window.state !== 'minimized'
   );
 };
+
+let firefix_window = async (window_properties) => {
+  let is_it_firefox = await is_firefox;
+  if (is_it_firefox) {
+    let { focused, ...good_properties } = window_properties;
+    return good_properties;
+  } else {
+    return window_properties;
+  }
+}
 
 // Get a window to put our tab on: either the last focussed, a random, or none;
 // In case of none being found, null is returned and the caller should make a new window himself (with the tab attached)
@@ -77,18 +90,18 @@ browser.runtime.onMessage.addListener(
       // TODO Check possible 'panel' support in firefox
       if (windowType === 'popup') {
         // Already a popup, no need to re-create the window
-        await browser.windows.update(sender.tab.windowId, {
+        await browser.windows.update(sender.tab.windowId, await firefix_window({
           focused: true,
           left: Math.round(screenLeft + frame.left),
           top: Math.round(screenTop + frame.top - Chrome_Popup_Menubar_Height),
           width: Math.round(frame.width),
           height: Math.round(frame.height + Chrome_Popup_Menubar_Height),
-        });
+        }));
         return;
       }
 
       let frame = request.position;
-      const created_window = await browser.windows.create({
+      const created_window = await browser.windows.create(await firefix_window({
         tabId: sender.tab.id,
         type: 'popup',
         focused: true,
@@ -96,7 +109,7 @@ browser.runtime.onMessage.addListener(
         top: Math.round(screenTop + frame.top - Chrome_Popup_Menubar_Height),
         width: Math.round(frame.width),
         height: Math.round(frame.height + Chrome_Popup_Menubar_Height),
-      });
+      }));
       // created_window.setAlwaysOnTop(true);
       return;
     }
@@ -156,6 +169,11 @@ let ping_content_script = async (tabId) => {
   }
 };
 
+let notify_tab_state = async (tabId, properties) => {
+  let port = browser.tabs.connect(tabId);
+  // port.postMessage(JSON.stringify({ method: 'notify', data: properties }))
+}
+
 let apply_browser_action = async (tabId, action) => {
   await browser.browserAction.setIcon({
     tabId: tabId,
@@ -195,11 +213,13 @@ let update_button_on_tab = async (tab) => {
       icon: '/Images/Icon_Windowed_Dim@scalable.svg',
       title: `Windowed is disabled on ${host}, click to re-activate`,
     });
+    await notify_tab_state(tab.id, { disabled: true });
   } else {
     await apply_browser_action(tab.id, {
       icon: '/Images/Icon_Windowed@scalable.svg',
       title: `Windowed is enabled on ${host}, click to disable`,
     });
+    await notify_tab_state(tab.id, { disabled: false });
   }
 };
 
@@ -215,12 +235,13 @@ browser.tabs.onUpdated.addListener(async (tabId, changed, tab) => {
     await update_button_on_tab(tab);
   }
 });
+
 // Not sure if I need this one -
 // only reason I need it is for when one would toggle Enabled/Disabled
-browser.tabs.onActivated.addListener(async ({ tabId }) => {
+// browser.tabs.onActivated.addListener(async ({ tabId }) => {
   // let tab = await browser.tabs.get(tabId);
   // await update_button_on_tab(tab);
-});
+// });
 
 browser.browserAction.onClicked.addListener(async (tab) => {
   let title = await browser.browserAction.getTitle({

@@ -6,20 +6,24 @@
     "name": "Michiel Dral",
     "url": "https://dral.eu/"
   },
-  "version": "20",
+  "version": "21",
   "manifest_version": 2,
   "permissions": [
     "storage",
-    "tabs","<all_urls>"
+    "tabs",
+    "<all_urls>"
   ],
-  "incognito": "split",
+  "applications": {
+    "gecko": {
+      "id": "{477dbe5e-1742-4641-a2c3-b6113bb5cf6e}"
+    }
+  },
   "browser_action": {},
   "content_scripts": [
     {
       "run_at": "document_start",
       "matches": [
-        "http://*/*",
-        "https://*/*"
+        "<all_urls>"
       ],
       "js": [
         "Javascript/browser-polyfill.min.js",
