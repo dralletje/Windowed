@@ -1,0 +1,25 @@
+{
+  "name": "windowed",
+  "version": "1.0.0",
+  "description": "[Install in Chrome Webstore](https://chrome.google.com/webstore/detail/windowed-floating-youtube/gibipneadnbflmkebnmcbgjdkngkbklb)",
+  "main": "index.js",
+  "scripts": {
+    "build": "(cd extension; zip -r ../extension.zip .)",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "web-ext run -s extension --url \"https://youtu.be/Yocja_N5s1I\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dralletje/Windowed.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/dralletje/Windowed/issues"
+  },
+  "homepage": "https://github.com/dralletje/Windowed#readme",
+  "devDependencies": {
+    "puppeteer": "^1.18.1",
+    "node-fetch": "^2.6.0"
+  }
+}
