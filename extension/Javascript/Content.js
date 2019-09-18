@@ -232,7 +232,7 @@ const code_to_insert_in_page = on_webpage`{
 
     create_style_rule();
 
-    let clicked_element_still_exists = last_click_y != null && last_click_x != null && document.elementsFromPoint(last_click_x, last_click_y).includes(last_click_element)
+    let clicked_element_still_exists = last_click_y != null && last_click_x != null; // && document.elementsFromPoint(last_click_x, last_click_y).includes(last_click_element)
     if (clicked_element_still_exists && Date.now() - last_click_timestamp < 1000) {
       let top_vs_bottom =
         last_click_y < window.innerHeight / 2
@@ -732,20 +732,20 @@ let clear_popup = () => {
   return false
 };
 
-document.onclick = function(e) {
-  last_click_x = e.pageX;
-  last_click_y = e.pageY;
+document.addEventListener('click', (event) => {
+  last_click_x = event.pageX;
+  last_click_y = event.pageY;
   last_click_timestamp = Date.now();
-  last_click_element = e.target;
+  // last_click_element = event.target;
 
-  if (last_popup != null && (e.target === last_popup || last_popup.contains(e.target))){
+  if (last_popup != null && (event.target === last_popup || last_popup.contains(event.target))){
     // Clicked inside popup
   } else {
     if (clear_popup()) {
       send_fullscreen_events();
     }
   }
-};
+});
 
 let exit_fullscreen_on_page = () => {
   window.postMessage(
