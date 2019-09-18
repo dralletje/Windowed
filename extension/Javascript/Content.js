@@ -233,7 +233,7 @@ const code_to_insert_in_page = on_webpage`{
     create_style_rule();
 
     let clicked_element_still_exists = last_click_y != null && last_click_x != null; // && document.elementsFromPoint(last_click_x, last_click_y).includes(last_click_element)
-    if (clicked_element_still_exists && Date.now() - last_click_timestamp < 1000) {
+    if (clicked_element_still_exists && Date.now() - last_click_timestamp < 300) {
       let top_vs_bottom =
         last_click_y < window.innerHeight / 2
           ? 'translateY(0px)'
@@ -244,39 +244,40 @@ const code_to_insert_in_page = on_webpage`{
           : 'translateX(-100%)';
 
       let popup = createElementFromHTML(`
-        <div class="${popup_class}" style="
+        <div class="${popup_class}" tabIndex="-1" style="
           position: absolute;
           top: ${last_click_y}px;
           left: ${last_click_x}px;
           transform: ${top_vs_bottom} ${left_vs_right};
         ">
-          <div data-target="windowed">
+          <button data-target="windowed" title="Windowed">
             <img
               src="${browser.extension.getURL(
                 'Images/Icon_Windowed@scalable.svg'
               )}"
             />
             <span>Windowed</span>
-          </div>
-          <div data-target="in-window">
+          </button>
+          <button data-target="in-window" title="In-window (i)">
             <img
               src="${browser.extension.getURL(
                 'Images/Icon_InWindow_Mono@scalable.svg'
               )}"
             />
             <span>In-window</span>
-          </div>
-          <div data-target="fullscreen">
+          </button>
+          <button data-target="fullscreen" title="Fullscreen (f)">
             <img
               src="${browser.extension.getURL(
                 'Images/Icon_EnterFullscreen@scalable.svg'
               )}"
             />
             <span>Fullscreen</span>
-          </div>
+          </button>
         </div>
       `);
       document.body.appendChild(popup);
+      popup.focus();
       last_popup = popup;
     } else {
       let popup = createElementFromHTML(`
@@ -292,7 +293,7 @@ const code_to_insert_in_page = on_webpage`{
             "
           ></div>
 
-          <div class="${popup_class}" style="
+          <div class="${popup_class}" tabIndex="-1" style="
             position: fixed;
             top: 25vh;
             left: 50vw;
@@ -301,30 +302,30 @@ const code_to_insert_in_page = on_webpage`{
           ">
             <div style="padding: 1.25em; padding-bottom: 0.25em; padding-top: 0.25em">Enter fullscreen</div>
             <div style="height: 10px"></div>
-            <div data-target="windowed">
+            <button data-target="windowed" title="Windowed (w)">
               <img
                 src="${browser.extension.getURL(
                   'Images/Icon_Windowed@scalable.svg'
                 )}"
               />
               <span>Windowed</span>
-            </div>
-            <div data-target="in-window">
+            </button>
+            <button data-target="in-window" title="In-window (i)">
               <img
                 src="${browser.extension.getURL(
                   'Images/Icon_InWindow_Mono@scalable.svg'
                 )}"
               />
               <span>In-window</span>
-            </div>
-            <div data-target="fullscreen" onclick="">
+            </button>
+            <button data-target="fullscreen" title="Fullscreen (f)">
               <img
                 src="${browser.extension.getURL(
                   'Images/Icon_EnterFullscreen@scalable.svg'
                 )}"
               />
               <span>Fullscreen</span>
-            </div>
+            </button>
           </div>
         </div>
       `);
@@ -333,23 +334,44 @@ const code_to_insert_in_page = on_webpage`{
     }
 
     let result = await new Promise((resolve) => {
+
+      let popup_element = document.querySelector(`.${popup_class}`);
+      popup_element.focus();
+
+      // For people who like keyboard shortcuts
+      popup_element.addEventListener('keydown', (event) => {
+        if (event.key === 'w') {
+          event.stopPropagation();
+          resolve('windowed');
+        }
+        if (event.key === 'i') {
+          event.stopPropagation();
+          resolve('in-window');
+        }
+        if (event.key === 'f') {
+          event.stopPropagation();
+
+          // I need this check here, because I can't call the original fullscreen from a
+          // 'async' function (or anywhere async (eg. after `resolve()` is called))
+          let element = document.querySelector(`[data-${fullscreen_select}]`);
+          disable_selector(element, fullscreen_select);
+          element.requestFullscreen();
+
+          resolve('fullscreen');
+        }
+      })
+
       for (let button of document.querySelectorAll(`.${popup_class} [data-target]`)) {
-        button.addEventListener(
-          'click',
-          (e) => {
-            if (button.dataset.target === 'fullscreen') {
-              // I need this check here, because I can't call the original fullscreen from a
-              // 'async' function (or anywhere async (eg. after `resolve()` is called))
-              let element = document.querySelector(`[data-${fullscreen_select}]`);
-              disable_selector(element, fullscreen_select);
-              element.requestFullscreen();
-            }
-            resolve(button.dataset.target);
-          },
-          {
-            once: true,
+        button.addEventListener('click', (e) => {
+          if (button.dataset.target === 'fullscreen') {
+            // I need this check here, because I can't call the original fullscreen from a
+            // 'async' function (or anywhere async (eg. after `resolve()` is called))
+            let element = document.querySelector(`[data-${fullscreen_select}]`);
+            disable_selector(element, fullscreen_select);
+            element.requestFullscreen();
           }
-        );
+          resolve(button.dataset.target);
+        });
       }
     });
 
@@ -441,15 +463,12 @@ const code_to_insert_in_page = on_webpage`{
     const window_width = Math.max(window.outerWidth, window.innerWidth);
     const window_height = Math.max(window.outerHeight, window.innerHeight);
 
-    console.log('window_width:', window_width);
-    console.log('window_height:', window_height);
-
     overwrite(window.screen, 'width', window_width);
     overwrite(window.screen, 'height', window_height);
 
     let element = document.querySelector('[data-${fullscreen_select}]');
     if (element == null) {
-      console.log('[WINDOWED] Strange, no fullscreen element shown');
+      console.warn('[WINDOWED] Strange, no fullscreen element shown');
       return;
     }
 
@@ -644,6 +663,10 @@ let create_style_rule = () => {
       color: black;
       min-width: 150px;
       z-index: ${max_z_index};
+
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
     }
 
     .${popup_class} [data-target] {
@@ -656,15 +679,27 @@ let create_style_rule = () => {
       display: flex;
       flex-direction: row;
       align-items: center;
+
+      font-size: inherit;
+      border: none;
+      box-shadow: none;
+    }
+
+    .${popup_class} [data-target]::-moz-focus-inner,
+    .${popup_class}::-moz-focus-inner {
+      border: none;
+    }
+    .${popup_class} [data-target]:focus {
+      filter: brightness(0.95);
+    }
+    .${popup_class} [data-target]:hover {
+      filter: brightness(0.9);
     }
 
     .${popup_class} [data-target] > img {
       height: 1.2em;
+      width: 1.2em;
       margin-right: 1em;
-    }
-
-    .${popup_class} [data-target]:hover {
-      filter: brightness(0.9);
     }
 
     [data-${native_button_overlay_class}] {
@@ -772,7 +807,7 @@ let go_in_window = async () => {
       exit_fullscreen_on_page();
     }
   };
-  window.addEventListener('keyup', escape_listener);
+  window.addEventListener('keydown', escape_listener);
 
   let beforeunload_listener = (e) => {
     exit_fullscreen_on_page();
@@ -971,7 +1006,8 @@ let check_disabled_state = async () => {
     let disabled = await is_windowed_disabled();
     window.postMessage({ type: 'WINDOWED-notify', disabled: disabled }, '*');
   } catch (err) {
-    console.log(`err:`, err)
+    // prettier-ignore
+    console.warn(`[Windowed] Error while checking if windowed is enabled or not`, err)
   }
 };
 
