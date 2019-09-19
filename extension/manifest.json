@@ -6,7 +6,7 @@
     "name": "Michiel Dral",
     "url": "https://dral.eu/"
   },
-  "version": "21",
+  "version": "22",
   "manifest_version": 2,
   "permissions": [
     "storage",
