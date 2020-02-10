@@ -6,8 +6,6 @@ const fullscreen_element_cloned = `${fullscreen_id_namespace}_ugly_hacky_cloned`
 const fullscreen_parent = `${fullscreen_id_namespace}_parent`;
 const body_class = `${fullscreen_id_namespace}_body`;
 
-const popup_class = `${fullscreen_id_namespace}_popup`;
-
 const native_button_overlay_class = `${fullscreen_id_namespace}_native_button_overlay`;
 
 const max_z_index = '2147483647';
@@ -230,7 +228,9 @@ const code_to_insert_in_page = on_webpage`{
       return 'NOT_ENABLED';
     }
 
-    create_style_rule();
+    let popup_div = document.createElement('div');
+    let shadowRoot = popup_div.attachShadow({ mode: 'open' });
+    shadowRoot.appendChild(createElementFromHTML(`<style>${popup_css}</style>`));
 
     let clicked_element_still_exists = last_click_y != null && last_click_x != null; // && document.elementsFromPoint(last_click_x, last_click_y).includes(last_click_element)
     if (clicked_element_still_exists && Date.now() - last_click_timestamp < 300) {
@@ -244,7 +244,7 @@ const code_to_insert_in_page = on_webpage`{
           : 'translateX(-100%)';
 
       let popup = createElementFromHTML(`
-        <div class="${popup_class}" tabIndex="-1" style="
+        <div class="popup" tabIndex="-1" style="
           position: absolute;
           top: ${last_click_y}px;
           left: ${last_click_x}px;
@@ -276,9 +276,7 @@ const code_to_insert_in_page = on_webpage`{
           </button>
         </div>
       `);
-      document.body.appendChild(popup);
-      popup.focus();
-      last_popup = popup;
+      shadowRoot.appendChild(popup);
     } else {
       let popup = createElementFromHTML(`
         <div>
@@ -293,7 +291,7 @@ const code_to_insert_in_page = on_webpage`{
             "
           ></div>
 
-          <div class="${popup_class}" tabIndex="-1" style="
+          <div class="popup" tabIndex="-1" style="
             position: fixed;
             top: 25vh;
             left: 50vw;
@@ -329,15 +327,16 @@ const code_to_insert_in_page = on_webpage`{
           </div>
         </div>
       `);
-      document.body.appendChild(popup);
-      last_popup = popup;
+      shadowRoot.appendChild(popup);
     }
+    let popup_element = shadowRoot.querySelector(`.popup`);
+    popup_element.focus();
+
+    document.body.appendChild(popup_div);
+    last_popup = popup_div;
+
 
     let result = await new Promise((resolve) => {
-
-      let popup_element = document.querySelector(`.${popup_class}`);
-      popup_element.focus();
-
       // For people who like keyboard shortcuts
       popup_element.addEventListener('keydown', (event) => {
         if (event.key === 'w') {
@@ -353,7 +352,7 @@ const code_to_insert_in_page = on_webpage`{
 
           // I need this check here, because I can't call the original fullscreen from a
           // 'async' function (or anywhere async (eg. after `resolve()` is called))
-          let element = document.querySelector(`[data-${fullscreen_select}]`);
+          let element = shadowRoot.querySelector(`[data-${fullscreen_select}]`);
           disable_selector(element, fullscreen_select);
           element.requestFullscreen();
 
@@ -361,12 +360,12 @@ const code_to_insert_in_page = on_webpage`{
         }
       })
 
-      for (let button of document.querySelectorAll(`.${popup_class} [data-target]`)) {
+      for (let button of shadowRoot.querySelectorAll(`[data-target]`)) {
         button.addEventListener('click', (e) => {
           if (button.dataset.target === 'fullscreen') {
             // I need this check here, because I can't call the original fullscreen from a
             // 'async' function (or anywhere async (eg. after `resolve()` is called))
-            let element = document.querySelector(`[data-${fullscreen_select}]`);
+            let element = shadowRoot.querySelector(`[data-${fullscreen_select}]`);
             disable_selector(element, fullscreen_select);
             element.requestFullscreen();
           }
@@ -605,11 +604,60 @@ let delay = (ms) => {
   });
 };
 
+let popup_css = `
+  .popup {
+    background-color: white;
+    border-radius: 3px;
+    border: solid #eee 1px;
+    box-shadow: 0px 2px 4px #00000026;
+    padding-top: 5px;
+    padding-bottom: 5px;
+    font-size: 16px;
+    color: black;
+    min-width: 150px;
+    z-index: ${max_z_index};
+
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  [data-target] {
+    cursor: pointer;
+    padding: 1.25em;
+    padding-top: 0.25em;
+    padding-bottom: 0.25em;
+    background-color: white;
+
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+
+    font-size: inherit;
+    border: none;
+    box-shadow: none;
+  }
+
+  [data-target]::-moz-focus-inner,
+  .popup::-moz-focus-inner {
+    border: none;
+  }
+  [data-target]:focus {
+    filter: brightness(0.95);
+  }
+  [data-target]:hover {
+    filter: brightness(0.9);
+  }
+
+  [data-target] > img {
+    height: 1.2em;
+    width: 1.2em;
+    margin-right: 1em;
+  }
+`
+
 let has_style_created = false;
 let create_style_rule = () => {
-  if (has_style_created) {
-    return;
-  }
   has_style_created = true;
 
   let css = `
@@ -650,56 +698,6 @@ let create_style_rule = () => {
     /* I know I want it to be generic, but still this is a youtube specific fix */
     [data-${body_class}] #player-theater-container {
       min-height: 0 !important;
-    }
-
-    .${popup_class} {
-      background-color: white;
-      border-radius: 3px;
-      border: solid #eee 1px;
-      box-shadow: 0px 2px 4px #00000026;
-      padding-top: 5px;
-      padding-bottom: 5px;
-      font-size: 16px;
-      color: black;
-      min-width: 150px;
-      z-index: ${max_z_index};
-
-      display: flex;
-      flex-direction: column;
-      align-items: stretch;
-    }
-
-    .${popup_class} [data-target] {
-      cursor: pointer;
-      padding: 1.25em;
-      padding-top: 0.25em;
-      padding-bottom: 0.25em;
-      background-color: white;
-
-      display: flex;
-      flex-direction: row;
-      align-items: center;
-
-      font-size: inherit;
-      border: none;
-      box-shadow: none;
-    }
-
-    .${popup_class} [data-target]::-moz-focus-inner,
-    .${popup_class}::-moz-focus-inner {
-      border: none;
-    }
-    .${popup_class} [data-target]:focus {
-      filter: brightness(0.95);
-    }
-    .${popup_class} [data-target]:hover {
-      filter: brightness(0.9);
-    }
-
-    .${popup_class} [data-target] > img {
-      height: 1.2em;
-      width: 1.2em;
-      margin-right: 1em;
     }
 
     [data-${native_button_overlay_class}] {
@@ -792,8 +790,9 @@ let exit_fullscreen_on_page = () => {
 };
 
 let createElementFromHTML = (htmlString) => {
-  var div = document.createElement('div');
+  let div = document.createElement('div');
   div.innerHTML = htmlString.trim();
+
   return div.firstChild;
 };
 
