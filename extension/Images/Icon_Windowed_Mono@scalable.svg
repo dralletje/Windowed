@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="128px" height="128px" viewBox="0 0 128 128" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 61 (89581) - https://sketch.com -->
+    <title>Icon_Windowed_Mono@scalable</title>
+    <desc>Created with Sketch.</desc>
+    <defs>
+        <path d="M105,0.465482078 C108.375073,0.465482078 111.125312,3.14071888 111.245878,6.4863552 L111.25,6.71548208 L111.25,29.443529 L98.75,29.443529 L98.75,12.9654821 L13.25,12.9654821 L13.25,70.75 L52.0278221,70.75 L52.0278221,83.25 L7,83.25 C3.62492653,83.25 0.874688093,80.5747632 0.754121976,77.2291269 L0.75,77 L0.75,6.71548208 C0.75,3.34040861 3.4252368,0.590170171 6.77087313,0.469604055 L7,0.465482078 L105,0.465482078 Z" id="path-1"></path>
+        <path d="M60,0 C62.7614237,0 65,2.23857625 65,5 L65,50 C65,52.7614237 62.7614237,55 60,55 L5,55 C2.23857625,55 0,52.7614237 0,50 L0,5 C0,2.23857625 2.23857625,0 5,0 L60,0 Z" id="path-3"></path>
+    </defs>
+    <g id="Icon_Windowed_Mono" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="Big" transform="translate(0.000000, 21.000000)">
+            <mask id="mask-2" fill="white">
+                <use xlink:href="#path-1"></use>
+            </mask>
+            <use id="Path-8" fill="#000000" fill-rule="nonzero" xlink:href="#path-1"></use>
+            <g id="Colors/Black" mask="url(#mask-2)" fill="#000000">
+                <g transform="translate(0.000000, -21.000000)" id="Rectangle">
+                    <rect x="0" y="0" width="128" height="128"></rect>
+                </g>
+            </g>
+        </g>
+        <g id="Small" transform="translate(62.000000, 60.000000)">
+            <mask id="mask-4" fill="white">
+                <use xlink:href="#path-3"></use>
+            </mask>
+            <use id="Rectangle-2" fill="#000000" fill-rule="nonzero" xlink:href="#path-3"></use>
+            <g id="Colors/Black" mask="url(#mask-4)" fill="#000000">
+                <g transform="translate(-62.000000, -60.000000)" id="Rectangle">
+                    <rect x="0" y="0" width="128" height="128"></rect>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

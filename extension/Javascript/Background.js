@@ -185,6 +185,10 @@ let apply_browser_action = async (tabId, action) => {
   });
 };
 
+let extensionIcon = (path) => {
+  return `${path}@1x.png`;
+}
+
 let update_button_on_tab = async (tab) => {
   let has_contentscript_active = tab.status === 'complete' && await ping_content_script(tab.id);
 
@@ -193,7 +197,7 @@ let update_button_on_tab = async (tab) => {
     (tab.url.match(/^chrome:\/\//) || tab.url.match(/^https?:\/\/chrome.google.com/))
   ) {
     await apply_browser_action(tab.id, {
-      icon: `/Images/Icon_Windowed_Error_Dim@scalable.svg`,
+      icon: extensionIcon(`/Images/Icon_Windowed_Mono_Error_Dim`), // TODO
       title: 'For security reasons, windowed is not supported on this domain.',
     });
     return;
@@ -201,7 +205,7 @@ let update_button_on_tab = async (tab) => {
 
   if (tab.status === 'complete' && has_contentscript_active === false) {
     await apply_browser_action(tab.id, {
-      icon: `/Images/Icon_Windowed_Error@scalable.svg`,
+      icon: extensionIcon(`/Images/Icon_Windowed_Mono_Error`),
       title: NEED_REFRESH_TITLE,
     });
     return;
@@ -210,16 +214,24 @@ let update_button_on_tab = async (tab) => {
   let host = new URL(tab.url).host;
   if (await is_disabled(tab)) {
     await apply_browser_action(tab.id, {
-      icon: '/Images/Icon_Windowed_Dim@scalable.svg',
+      icon: extensionIcon('/Images/Icon_Windowed_Mono_Dim'),
       title: `Windowed is disabled on ${host}, click to re-activate`,
     });
     await notify_tab_state(tab.id, { disabled: true });
   } else {
-    await apply_browser_action(tab.id, {
-      icon: '/Images/Icon_Windowed@scalable.svg',
-      title: `Windowed is enabled on ${host}, click to disable`,
-    });
-    await notify_tab_state(tab.id, { disabled: false });
+    if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      await apply_browser_action(tab.id, {
+        icon: extensionIcon('/Images/Icon_Windowed_Mono_Dark'),
+        title: `Windowed is enabled on ${host}, click to disable`,
+      });
+      await notify_tab_state(tab.id, { disabled: false });
+    } else {
+      await apply_browser_action(tab.id, {
+        icon: extensionIcon('/Images/Icon_Windowed_Mono'),
+        title: `Windowed is enabled on ${host}, click to disable`,
+      });
+      await notify_tab_state(tab.id, { disabled: false });
+    }
   }
 };
 

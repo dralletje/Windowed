@@ -1,0 +1,45 @@
+<html>
+<body>
+  <div style="width: 200px; height: 200px; background-color: blue"></div>
+  <div
+    class="video"
+    style="
+      padding: 50px;
+      min-height: 300px;
+      width: 500px;
+      background-color: black;
+    "
+  >
+    <div
+      onclick="document.exitFullscreen()"
+      class="exit-fullscreen"
+      style="
+        display: inline-block;
+        padding: 5px;
+        color: white;
+        border: 2px solid white;
+      "
+    >Exit fullscreen</div>
+    <div
+      onclick="document.querySelector('.video').requestFullscreen()"
+      class="fullscreen"
+      style="
+        display: inline-block;
+        padding: 5px;
+        color: white;
+        border: 2px solid white;
+      "
+    >Fullscreen</div>
+  </div>
+
+  <div style="width: 200px; height: 200px; background-color: red"></div>
+
+  <script>
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+      }
+    });
+  </script>
+</body>
+</html>
