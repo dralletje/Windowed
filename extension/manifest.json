@@ -8,27 +8,29 @@
   },
   "version": "22",
   "manifest_version": 2,
-  "permissions": [
-    "storage",
-    "tabs",
-    "<all_urls>"
-  ],
+  "permissions": ["storage", "tabs", "<all_urls>"],
   "applications": {
     "gecko": {
       "id": "{477dbe5e-1742-4641-a2c3-b6113bb5cf6e}"
     }
   },
-  "browser_action": {},
+  "browser_action": {
+    "default_icon": {
+      "32": "/Images/Icon_Windowed_Mono@1x.png"
+    },
+    "theme_icons": [
+      {
+        "light": "/Images/Icon_Windowed_Mono@1x.png",
+        "dark": "/Images/Icon_Windowed_Mono_Dark@1x.png",
+        "size": 32
+      }
+    ]
+  },
   "content_scripts": [
     {
       "run_at": "document_start",
-      "matches": [
-        "<all_urls>"
-      ],
-      "js": [
-        "Javascript/browser-polyfill.min.js",
-        "Javascript/Content.js"
-      ],
+      "matches": ["<all_urls>"],
+      "js": ["Javascript/browser-polyfill.min.js", "Javascript/Content.js"],
       "all_frames": true
     }
   ],
@@ -39,9 +41,7 @@
     ],
     "persistent": false
   },
-  "web_accessible_resources": [
-    "Images/*"
-  ],
+  "web_accessible_resources": ["Images/*"],
   "icons": {
     "16": "Icons/Icon_16.png",
     "32": "Icons/Icon_32.png",
