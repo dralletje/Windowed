@@ -211,10 +211,6 @@ let apply_browser_action = async (tabId, action) => {
   });
 };
 
-let extensionIcon = path => {
-  return `${path}@1x.png`;
-};
-
 let update_button_on_tab = async tab => {
   let has_contentscript_active =
     tab.status === "complete" && (await ping_content_script(tab.id));

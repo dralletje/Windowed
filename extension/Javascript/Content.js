@@ -352,7 +352,7 @@ const code_to_insert_in_page = on_webpage`{
 
           // I need this check here, because I can't call the original fullscreen from a
           // 'async' function (or anywhere async (eg. after `resolve()` is called))
-          let element = shadowRoot.querySelector(`[data-${fullscreen_select}]`);
+          let element = document.querySelector(`[data-${fullscreen_select}]`);
           disable_selector(element, fullscreen_select);
           element.requestFullscreen();
 
@@ -365,7 +365,7 @@ const code_to_insert_in_page = on_webpage`{
           if (button.dataset.target === 'fullscreen') {
             // I need this check here, because I can't call the original fullscreen from a
             // 'async' function (or anywhere async (eg. after `resolve()` is called))
-            let element = shadowRoot.querySelector(`[data-${fullscreen_select}]`);
+            let element = document.querySelector(`[data-${fullscreen_select}]`);
             disable_selector(element, fullscreen_select);
             element.requestFullscreen();
           }
