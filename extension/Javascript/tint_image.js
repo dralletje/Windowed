@@ -34,7 +34,7 @@ let find_and_replace_alpha = color => {
 };
 
 let color_icon_cache = new Map();
-export let tint_image = (url, color) => {
+let tint_image = (url, color) => {
   let identifier = `${url}@${color}`;
   if (color_icon_cache.has(identifier)) {
     return color_icon_cache.get(identifier);
@@ -44,6 +44,9 @@ export let tint_image = (url, color) => {
     return icon;
   }
 };
+
+window.tint_image = tint_image;
+
 let _color_icon = async (url, _color) => {
   let { color, alpha } = find_and_replace_alpha(_color);
 

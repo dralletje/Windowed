@@ -6,7 +6,7 @@
     "name": "Michiel Dral",
     "url": "https://dral.eu/"
   },
-  "version": "22",
+  "version": "24",
   "manifest_version": 2,
   "permissions": ["storage", "tabs", "<all_urls>"],
   "applications": {
@@ -17,14 +17,7 @@
   "browser_action": {
     "default_icon": {
       "32": "/Images/Icon_Windowed_Mono@1x.png"
-    },
-    "theme_icons": [
-      {
-        "light": "/Images/Icon_Windowed_Mono@1x.png",
-        "dark": "/Images/Icon_Windowed_Mono_Dark@1x.png",
-        "size": 32
-      }
-    ]
+    }
   },
   "content_scripts": [
     {
@@ -37,7 +30,8 @@
   "background": {
     "scripts": [
       "Javascript/browser-polyfill.min.js",
-      "Javascript/Background.js"
+      "Javascript/tint_image.js",
+      "Javascript/BackgroundModule.js"
     ],
     "persistent": false
   },

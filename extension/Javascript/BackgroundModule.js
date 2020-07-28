@@ -1,4 +1,5 @@
-import { tint_image } from './tint_image.js';
+// Import is not yet allowed in firefox, so for now I put tint_image in manifest.json
+// import { tint_image } from './tint_image.js';
 
 let NEED_REFRESH_TITLE = `This page needs to be reloaded for Windowed to activate. Click here to reload.`;
 let BROWSERACTION_ICON = "/Images/Icon_Windowed_Mono@1x.png";
@@ -186,10 +187,14 @@ let ping_content_script = async tabId => {
 let icon_theme_color = async tab => {
   if (await is_firefox) {
     let theme = await browser.theme.getCurrent(tab.windowId);
-    if (theme != null && theme.colors != null) {
+    console.log('Got theme')
+    if (theme != null && theme.colors != null && theme.colors.icons != null) {
+      console.log('And it\'s not null:', theme.colors.icons)
       return theme.colors.icons;
     }
   }
+
+  console.log('Do it based on match media')
   return window.matchMedia("(prefers-color-scheme: dark)").matches
     ? "rgba(255,255,255,0.8)"
     : "black";
