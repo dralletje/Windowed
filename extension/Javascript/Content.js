@@ -667,8 +667,10 @@ let create_style_rule = () => {
       bottom: 0 !important;
       right: 0 !important;
       left: 0 !important;
-      width: 100%;
-      height: 100%;
+      width: 100% !important;
+      height: 100% !important;
+      max-width: initial !important;
+      max-height: initial !important;
       z-index: ${max_z_index} !important;
     }
 
