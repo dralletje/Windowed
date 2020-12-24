@@ -6,8 +6,6 @@ const fullscreen_element_cloned = `${fullscreen_id_namespace}_ugly_hacky_cloned`
 const fullscreen_parent = `${fullscreen_id_namespace}_parent`;
 const body_class = `${fullscreen_id_namespace}_body`;
 
-const native_button_overlay_class = `${fullscreen_id_namespace}_native_button_overlay`;
-
 const max_z_index = "2147483647";
 
 // Aliasses for different browsers (rest of aliasses are in the inserted script)
@@ -82,7 +80,7 @@ let external_function_parent = (function_id) => async (...args) => {
       function_id: function_id,
       args: args,
     },
-    "*"
+    "*",
   );
 
   return new Promise((resolve, reject) => {
@@ -116,15 +114,24 @@ let is_windowed_disabled = async () => {
   return disabled[host] === true;
 };
 
+let Button = ({ icon, title, text, target }) => `
+  <button data-target="${target}" title="${title}">
+    <img
+      src="${icon}"
+    />
+    <span>${text}</span>
+  </button>
+`;
+
 // Insert requestFullScreen mock
 const code_to_insert_in_page = on_webpage`{
   // Alliases for different browsers
   let requestFullscreen_aliasses = ${JSON.stringify(
-    requestFullscreen_aliasses
+    requestFullscreen_aliasses,
   )};
   let exitFullscreen_aliasses = ${JSON.stringify(exitFullscreen_aliasses)};
   let fullscreenelement_aliasses = ${JSON.stringify(
-    fullscreenelement_aliasses
+    fullscreenelement_aliasses,
   )};
   let fullscreenchange_aliasses = ${JSON.stringify(fullscreenchange_aliasses)};
 
@@ -231,14 +238,24 @@ const code_to_insert_in_page = on_webpage`{
     let popup_div = document.createElement("div");
     let shadowRoot = popup_div.attachShadow({ mode: "open" });
     shadowRoot.appendChild(
-      createElementFromHTML(`<style>${popup_css}</style>`)
+      createElementFromHTML(`<style>${popup_css}</style>`),
     );
+
+    let element = document.querySelector(`[data-${fullscreen_select}]`);
+    let video_element = element.querySelector("video");
+    video_element =
+      video_element &&
+      video_element.readyState >= 1 &&
+      !video_element.disablePictureInPicture
+        ? video_element
+        : null;
 
     let clicked_element_still_exists =
       last_click_y != null && last_click_x != null; // && document.elementsFromPoint(last_click_x, last_click_y).includes(last_click_element)
     if (
       clicked_element_still_exists &&
-      Date.now() - last_click_timestamp < 300
+      Date.now() - last_click_timestamp <
+        CLICK_IS_CONSIDERED_FULLSCREEN_CLICK_DELAY
     ) {
       let top_vs_bottom =
         last_click_y < window.innerHeight / 2
@@ -250,36 +267,46 @@ const code_to_insert_in_page = on_webpage`{
           : "translateX(-100%)";
 
       let popup = createElementFromHTML(`
-        <div class="popup" tabIndex="-1" style="
+        <div class="popup" tabIndex="1" style="
           position: absolute;
           top: ${last_click_y}px;
           left: ${last_click_x}px;
           transform: ${top_vs_bottom} ${left_vs_right};
         ">
-          <button data-target="windowed" title="Windowed">
-            <img
-              src="${browser.extension.getURL(
-                "Images/Icon_Windowed@scalable.svg"
-              )}"
-            />
-            <span>Windowed</span>
-          </button>
-          <button data-target="in-window" title="In-window (i)">
-            <img
-              src="${browser.extension.getURL(
-                "Images/Icon_InWindow_Mono@scalable.svg"
-              )}"
-            />
-            <span>In-window</span>
-          </button>
-          <button data-target="fullscreen" title="Fullscreen (f)">
-            <img
-              src="${browser.extension.getURL(
-                "Images/Icon_EnterFullscreen@scalable.svg"
-              )}"
-            />
-            <span>Fullscreen</span>
-          </button>
+          ${Button({
+            icon: browser.extension.getURL("Images/Icon_Windowed@scalable.svg"),
+            text: "Windowed",
+            title: "Windowed (f)",
+            target: "windowed",
+          })}
+          ${Button({
+            icon: browser.extension.getURL(
+              "Images/Icon_InWindow_Mono@scalable.svg",
+            ),
+            text: "In-window",
+            title: "In-window (i)",
+            target: "in-window",
+          })}
+          ${Button({
+            icon: browser.extension.getURL(
+              "Images/Icon_EnterFullscreen@scalable.svg",
+            ),
+            text: "Fullscreen",
+            title: "Fullscreen (f)",
+            target: "fullscreen",
+          })}
+          ${
+            video_element
+              ? Button({
+                  icon: browser.extension.getURL(
+                    "Images/Icon_PiP@scalable.svg",
+                  ),
+                  text: "PiP",
+                  title: "Picture-in-picture (p)",
+                  target: "picture-in-picture",
+                })
+              : ""
+          }
         </div>
       `);
       shadowRoot.appendChild(popup);
@@ -297,7 +324,7 @@ const code_to_insert_in_page = on_webpage`{
             "
           ></div>
 
-          <div class="popup" tabIndex="-1" style="
+          <div class="popup" tabIndex="1" style="
             position: fixed;
             top: 25vh;
             left: 50vw;
@@ -306,37 +333,51 @@ const code_to_insert_in_page = on_webpage`{
           ">
             <div style="padding: 1.25em; padding-bottom: 0.25em; padding-top: 0.25em">Enter fullscreen</div>
             <div style="height: 10px"></div>
-            <button data-target="windowed" title="Windowed (w)">
-              <img
-                src="${browser.extension.getURL(
-                  "Images/Icon_Windowed@scalable.svg"
-                )}"
-              />
-              <span>Windowed</span>
-            </button>
-            <button data-target="in-window" title="In-window (i)">
-              <img
-                src="${browser.extension.getURL(
-                  "Images/Icon_InWindow_Mono@scalable.svg"
-                )}"
-              />
-              <span>In-window</span>
-            </button>
-            <button data-target="fullscreen" title="Fullscreen (f)">
-              <img
-                src="${browser.extension.getURL(
-                  "Images/Icon_EnterFullscreen@scalable.svg"
-                )}"
-              />
-              <span>Fullscreen</span>
-            </button>
+            ${Button({
+              icon: browser.extension.getURL(
+                "Images/Icon_Windowed@scalable.svg",
+              ),
+              text: "Windowed",
+              title: "Windowed (f)",
+              target: "windowed",
+            })}
+            ${Button({
+              icon: browser.extension.getURL(
+                "Images/Icon_InWindow_Mono@scalable.svg",
+              ),
+              text: "In-window",
+              title: "In-window (i)",
+              target: "in-window",
+            })}
+            ${Button({
+              icon: browser.extension.getURL(
+                "Images/Icon_EnterFullscreen@scalable.svg",
+              ),
+              text: "Fullscreen",
+              title: "Fullscreen (f)",
+              target: "fullscreen",
+            })}
+            ${
+              video_element
+                ? Button({
+                    icon: browser.extension.getURL(
+                      "Images/Icon_PiP@scalable.svg",
+                    ),
+                    text: "PiP",
+                    title: "Picture in picture (p)",
+                    target: "picture-in-picture",
+                  })
+                : ""
+            }
           </div>
         </div>
       `);
       shadowRoot.appendChild(popup);
     }
     let popup_element = shadowRoot.querySelector(`.popup`);
-    popup_element.focus();
+    setTimeout(() => {
+      popup_element.focus();
+    }, 0);
 
     document.body.appendChild(popup_div);
     last_popup = popup_div;
@@ -352,7 +393,7 @@ const code_to_insert_in_page = on_webpage`{
           event.stopPropagation();
           resolve("in-window");
         }
-        if (event.key === "f") {
+        if (event.key === "f" || event.key === "Escape") {
           event.stopPropagation();
 
           // I need this check here, because I can't call the original fullscreen from a
@@ -362,6 +403,10 @@ const code_to_insert_in_page = on_webpage`{
           element.requestFullscreen();
 
           resolve("fullscreen");
+        }
+        if (event.key === "p") {
+          event.stopPropagation();
+          resolve("picture-in-picture");
         }
       });
 
@@ -381,6 +426,8 @@ const code_to_insert_in_page = on_webpage`{
 
     clear_popup();
 
+    console.log(`result:`, result);
+
     if (result === "fullscreen") {
       // NOTE This is now all done sync in the popup callback.
       // .... because firefox does not like it when I call it from a promise.
@@ -393,6 +440,15 @@ const code_to_insert_in_page = on_webpage`{
     if (result === "in-window") {
       await go_in_window();
       return "IN-WINDOW";
+    }
+    if (result === "picture-in-picture") {
+      video_element.requestPictureInPicture();
+
+      onEscapePress(() => {
+        document.exitPictureInPicture();
+      });
+
+      return "PICTURE-IN-PICTURE";
     }
     if (result === "exit") {
       await go_out_of_fullscreen();
@@ -627,7 +683,17 @@ let popup_css = `
     align-items: stretch;
   }
 
-  [data-target] {
+  .popup:focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .popup {
+      filter: invert(0.9);
+    }
+  }  
+
+  .popup [data-target] {
     cursor: pointer;
     padding: 1.25em;
     padding-top: 0.25em;
@@ -641,6 +707,8 @@ let popup_css = `
     font-size: inherit;
     border: none;
     box-shadow: none;
+
+    white-space: nowrap;
   }
 
   [data-target]::-moz-focus-inner,
@@ -649,6 +717,9 @@ let popup_css = `
   }
   [data-target]:focus {
     filter: brightness(0.95);
+  }
+  [data-target]:focus:not(:focus-visible) {
+    outline: none;
   }
   [data-target]:hover {
     filter: brightness(0.9);
@@ -706,22 +777,6 @@ let create_style_rule = () => {
     [data-${body_class}] #player-theater-container {
       min-height: 0 !important;
     }
-
-    [data-${native_button_overlay_class}] {
-      width: 40px;
-      height: 40px;
-
-      background-color: transparent;
-
-      position: absolute;
-      bottom: 90px;
-      right: 90px;
-      z-index: 2147483647;
-    }
-
-    [data-${body_class}] [data-${native_button_overlay_class}] {
-      bottom: 40px;
-    }
   `;
 
   let styleEl = document.createElement("style");
@@ -752,6 +807,8 @@ let send_chrome_message = async (message) => {
     throw err;
   }
 };
+
+let CLICK_IS_CONSIDERED_FULLSCREEN_CLICK_DELAY = 1 * 1000;
 
 let last_click_x = null;
 let last_click_y = null;
@@ -795,7 +852,7 @@ let exit_fullscreen_on_page = () => {
     {
       type: "WINDOWED-exit-fullscreen",
     },
-    "*"
+    "*",
   );
 };
 
@@ -811,12 +868,9 @@ let go_in_window = async () => {
   clear_listeners();
   let element = document.querySelector(`[data-${fullscreen_select}]`);
 
-  let escape_listener = (e) => {
-    if (!e.defaultPrevented && e.which === 27) {
-      exit_fullscreen_on_page();
-    }
-  };
-  window.addEventListener("keydown", escape_listener);
+  let unlisten_to_escape = onEscapePress(() => {
+    exit_fullscreen_on_page();
+  });
 
   let beforeunload_listener = (e) => {
     exit_fullscreen_on_page();
@@ -824,7 +878,7 @@ let go_in_window = async () => {
   window.addEventListener("beforeunload", beforeunload_listener);
 
   clear_listeners = () => {
-    window.removeEventListener("keyup", escape_listener);
+    unlisten_to_escape();
     window.removeEventListener("beforeunload", beforeunload_listener);
   };
 
@@ -866,7 +920,7 @@ let go_into_fullscreen = async () => {
           if (cloned.contentWindow && cloned.contentWindow.postMessage) {
             cloned.contentWindow.postMessage(
               { type: "WINDOWED-confirm-fullscreen" },
-              "*"
+              "*",
             );
           }
         }
@@ -880,12 +934,9 @@ let go_into_fullscreen = async () => {
     });
   }
 
-  let escape_listener = (e) => {
-    if (!e.defaultPrevented && e.which === 27) {
-      exit_fullscreen_on_page();
-    }
-  };
-  window.addEventListener("keyup", escape_listener);
+  let unlisten_to_escape = onEscapePress(() => {
+    exit_fullscreen_on_page();
+  });
 
   let beforeunload_listener = (e) => {
     exit_fullscreen_on_page();
@@ -894,7 +945,7 @@ let go_into_fullscreen = async () => {
 
   clear_listeners = () => {
     mutationObserver.disconnect();
-    window.removeEventListener("keyup", escape_listener);
+    unlisten_to_escape();
     window.removeEventListener("beforeunload", beforeunload_listener);
   };
 
@@ -939,7 +990,7 @@ let go_out_of_fullscreen = async () => {
 
   // Remove fullscreen class... from everything
   for (let element of document.querySelectorAll(
-    `[data-${fullscreen_parent}]`
+    `[data-${fullscreen_parent}]`,
   )) {
     disable_selector(element, fullscreen_parent);
   }
@@ -949,7 +1000,7 @@ let go_out_of_fullscreen = async () => {
   send_fullscreen_events();
 
   const fullscreen_element = document.querySelector(
-    `[data-${fullscreen_select}]`
+    `[data-${fullscreen_select}]`,
   );
   disable_selector(fullscreen_element, fullscreen_select);
   disable_selector(fullscreen_element, fullscreen_active);
@@ -972,7 +1023,7 @@ let go_out_of_fullscreen = async () => {
 
 external_functions.is_fullscreen = () => {
   const fullscreen_element = document.querySelector(
-    `[data-${fullscreen_active}]`
+    `[data-${fullscreen_active}]`,
   );
   return fullscreen_element != null;
 };
@@ -991,7 +1042,7 @@ window.addEventListener("message", async (event) => {
           resultType: "resolve",
           result: result,
         },
-        "*"
+        "*",
       );
     } catch (err) {
       event.source.postMessage(
@@ -1004,11 +1055,101 @@ window.addEventListener("message", async (event) => {
             stack: err.stack,
           },
         },
-        "*"
+        "*",
       );
     }
   }
 });
+
+let is_escape_locked = false;
+// TODO Ask feedback from the Stadia community to find out what an helpful solution would be
+// https://www.reddit.com/r/Stadia/comments/kibh2r/windowed_stadia_extension_what_could_i_improve/
+// WELL one response isn't too bad, is it?
+// ...
+// const keyboard_lock_injection = on_webpage`{
+//   let all_communication_id = 0;
+//   let external_function = (function_id) => async (...args) => {
+//     let request_id = all_communication_id;
+//     all_communication_id = all_communication_id + 1;
+
+//     window.postMessage({
+//       type: 'CUSTOM_WINDOWED_FROM_PAGE',
+//       request_id: request_id,
+//       function_id: function_id,
+//       args: args,
+//     }, '*');
+
+//     return new Promise((resolve, reject) => {
+//       let listener = (event) => {
+//         // We only accept messages from ourselves
+//         if (event.source != window) return;
+//         if (event.data == null) return;
+
+//         if (event.data.type === 'CUSTOM_WINDOWED_TO_PAGE') {
+//           if (event.data.request_id === request_id) {
+//             window.removeEventListener('message', listener);
+//             if (event.data.resultType === 'resolve') {
+//               resolve(event.data.result);
+//             } else {
+//               let err = new Error(event.data.result.message);
+//               err.stack = event.data.result.stack;
+//               reject(err);
+//             }
+//           }
+//         }
+//       }
+//       window.addEventListener('message', listener);
+//     });
+//   }
+
+//   let old_lock = navigator.keyboard.lock.bind(navigator.keyboard);
+//   let set_escape_locked = ${(is_locked) => {
+//     is_escape_locked = is_locked;
+//   }}
+//   navigator.keyboard.lock = async (...args) => {
+//     let keycodes = args[0]
+
+//     if (keycodes == null || keycodes.includes('Escape')) {
+//       try {
+//         set_escape_locked(true)
+//       } catch (err) {}
+//     }
+//     return old_lock(...args)
+//   }
+// }`;
+// let keyboard_lock_script_element = document.createElement("script");
+// keyboard_lock_script_element.innerHTML = keyboard_lock_injection;
+// document.documentElement.appendChild(keyboard_lock_script_element);
+// document.documentElement.removeChild(keyboard_lock_script_element);
+
+let onEscapePress = (fn) => {
+  let escape_timeout = null;
+  let escape_listener = (e) => {
+    if (!e.defaultPrevented && e.key === "Escape") {
+      if (is_escape_locked) {
+        escape_timeout = setTimeout(() => {
+          fn();
+        }, 1.2 * 1000);
+      } else {
+        fn();
+      }
+    }
+  };
+
+  let escape_up_listener = (e) => {
+    if (!e.defaultPrevented && e.key === "Escape") {
+      clearTimeout(escape_timeout);
+    }
+  };
+
+  window.addEventListener("keydown", escape_listener);
+  window.addEventListener("keyup", escape_up_listener);
+
+  return () => {
+    window.removeEventListener("keydown", escape_listener);
+    window.removeEventListener("keyup", escape_up_listener);
+  };
+};
 
 let check_disabled_state = async () => {
   try {

@@ -8,10 +8,10 @@ let browser_info_promise = browser.runtime.getBrowserInfo
   ? browser.runtime.getBrowserInfo()
   : Promise.resolve({ name: "Chrome" });
 let is_firefox = browser_info_promise.then(
-  browser_info => browser_info.name === "Firefox"
+  (browser_info) => browser_info.name === "Firefox",
 );
 
-let is_valid_window = window => {
+let is_valid_window = (window) => {
   return (
     window.incognito === false &&
     window.type === "normal" &&
@@ -19,7 +19,7 @@ let is_valid_window = window => {
   );
 };
 
-let firefix_window = async window_properties => {
+let firefix_window = async (window_properties) => {
   let is_it_firefox = await is_firefox;
   if (is_it_firefox) {
     let { focused, ...good_properties } = window_properties;
@@ -31,9 +31,9 @@ let firefix_window = async window_properties => {
 
 // Get a window to put our tab on: either the last focussed, a random, or none;
 // In case of none being found, null is returned and the caller should make a new window himself (with the tab attached)
-const get_fallback_window = async windowId => {
+const get_fallback_window = async (windowId) => {
   const first_fallback_window = await browser.windows.getLastFocused({
-    windowTypes: ["normal"]
+    windowTypes: ["normal"],
   });
 
   if (
@@ -44,8 +44,8 @@ const get_fallback_window = async windowId => {
   } else {
     const windows = await browser.windows.getAll({ windowTypes: ["normal"] });
     const right_window = windows
-      .filter(x => is_valid_window(x))
-      .filter(x => x.id !== windowId)
+      .filter((x) => is_valid_window(x))
+      .filter((x) => x.id !== windowId)
       .sort((a, b) => a.tabs.length - b.tabs.length)[0];
 
     if (right_window) {
@@ -61,18 +61,18 @@ const get_fallback_window = async windowId => {
 // (and check the size of it's current header itself)
 const Chrome_Popup_Menubar_Height = 22; // Do `window.outerHeight - window.innerHeight` in a popup tab
 
-let chrome_response = fn => async (request, sender, response_fn) => {
+let chrome_response = (fn) => async (request, sender, response_fn) => {
   try {
     let result = await fn(request, sender);
     return { type: "resolve", value: result };
   } catch (err) {
     return {
       type: "reject",
-      value: { message: err.message, stack: err.stack }
+      value: { message: err.message, stack: err.stack },
     };
   }
 };
-let is_disabled = async tab => {
+let is_disabled = async (tab) => {
   let host = new URL(tab.url).host;
   let disabled = await browser.storage.sync.get([host]);
   return disabled[host] === true;
@@ -92,7 +92,7 @@ browser.runtime.onMessage.addListener(
       let {
         left: screenLeft,
         top: screenTop,
-        type: windowType
+        type: windowType,
       } = await browser.windows.get(sender.tab.windowId);
 
       // TODO Check possible 'panel' support in firefox
@@ -104,11 +104,11 @@ browser.runtime.onMessage.addListener(
             focused: true,
             left: Math.round(screenLeft + frame.left),
             top: Math.round(
-              screenTop + frame.top - Chrome_Popup_Menubar_Height
+              screenTop + frame.top - Chrome_Popup_Menubar_Height,
             ),
             width: Math.round(frame.width),
-            height: Math.round(frame.height + Chrome_Popup_Menubar_Height)
-          })
+            height: Math.round(frame.height + Chrome_Popup_Menubar_Height),
+          }),
         );
         return;
       }
@@ -122,8 +122,8 @@ browser.runtime.onMessage.addListener(
           left: Math.round(screenLeft + frame.left),
           top: Math.round(screenTop + frame.top - Chrome_Popup_Menubar_Height),
           width: Math.round(frame.width),
-          height: Math.round(frame.height + Chrome_Popup_Menubar_Height)
-        })
+          height: Math.round(frame.height + Chrome_Popup_Menubar_Height),
+        }),
       );
       // created_window.setAlwaysOnTop(true);
       return;
@@ -146,34 +146,34 @@ browser.runtime.onMessage.addListener(
       if (fallback_window) {
         await browser.tabs.move(sender.tab.id, {
           windowId: fallback_window.id,
-          index: -1
+          index: -1,
         });
         await browser.tabs.update(sender.tab.id, { active: true });
       } else {
         // No other window open: create a new window with tabs
         let create_window_with_tabs = await browser.windows.create({
           tabId: sender.tab.id,
-          type: "normal"
+          type: "normal",
         });
       }
       return;
     }
-  })
+  }),
 );
 
 let current_port_promises = {};
-let ping_content_script = async tabId => {
+let ping_content_script = async (tabId) => {
   try {
     if (current_port_promises[tabId] != null) {
       return await current_port_promises[tabId];
     } else {
       current_port_promises[tabId] = new Promise((resolve, reject) => {
         let port = browser.tabs.connect(tabId);
-        port.onMessage.addListener(message => {
+        port.onMessage.addListener((message) => {
           resolve(true);
           port.disconnect();
         });
-        port.onDisconnect.addListener(p => {
+        port.onDisconnect.addListener((p) => {
           resolve(false);
         });
       });
@@ -184,17 +184,17 @@ let ping_content_script = async tabId => {
   }
 };
 
-let icon_theme_color = async tab => {
+let icon_theme_color = async (tab) => {
   if (await is_firefox) {
     let theme = await browser.theme.getCurrent(tab.windowId);
-    console.log('Got theme')
+    console.log("Got theme");
     if (theme != null && theme.colors != null && theme.colors.icons != null) {
-      console.log('And it\'s not null:', theme.colors.icons)
+      console.log("And it's not null:", theme.colors.icons);
       return theme.colors.icons;
     }
   }
 
-  console.log('Do it based on match media')
+  console.log("Do it based on match media");
   return window.matchMedia("(prefers-color-scheme: dark)").matches
     ? "rgba(255,255,255,0.8)"
     : "black";
@@ -208,15 +208,15 @@ let notify_tab_state = async (tabId, properties) => {
 let apply_browser_action = async (tabId, action) => {
   await browser.browserAction.setIcon({
     tabId: tabId,
-    imageData: action.icon
+    imageData: action.icon,
   });
   await browser.browserAction.setTitle({
     tabId: tabId,
-    title: action.title
+    title: action.title,
   });
 };
 
-let update_button_on_tab = async tab => {
+let update_button_on_tab = async (tab) => {
   let has_contentscript_active =
     tab.status === "complete" && (await ping_content_script(tab.id));
 
@@ -228,15 +228,16 @@ let update_button_on_tab = async tab => {
   ) {
     await apply_browser_action(tab.id, {
       icon: await tint_image(BROWSERACTION_ICON, "rgba(208, 2, 27, .22)"),
-      title: "For security reasons, windowed is not supported on this domain."
+      title: "For security reasons, windowed is not supported on this domain.",
     });
     return;
   }
 
   if (tab.status === "complete" && has_contentscript_active === false) {
     await apply_browser_action(tab.id, {
-      icon: await tint_image(BROWSERACTION_ICON, "#D0021B"),
-      title: NEED_REFRESH_TITLE
+      // icon: await tint_image(BROWSERACTION_ICON, "#D0021B"),
+      icon: await tint_image(BROWSERACTION_ICON, "#02d0d0"),
+      title: NEED_REFRESH_TITLE,
     });
     return;
   }
@@ -245,13 +246,13 @@ let update_button_on_tab = async tab => {
   if (await is_disabled(tab)) {
     await apply_browser_action(tab.id, {
       icon: await tint_image(BROWSERACTION_ICON, "rgba(133, 133, 133, 0.5)"),
-      title: `Windowed is disabled on ${host}, click to re-activate`
+      title: `Windowed is disabled on ${host}, click to re-activate`,
     });
     await notify_tab_state(tab.id, { disabled: true });
   } else {
     await apply_browser_action(tab.id, {
       icon: await tint_image(BROWSERACTION_ICON, await icon_theme_color(tab)),
-      title: `Windowed is enabled on ${host}, click to disable`
+      title: `Windowed is enabled on ${host}, click to disable`,
     });
     await notify_tab_state(tab.id, { disabled: false });
   }
@@ -280,14 +281,14 @@ browser.tabs.onUpdated.addListener(async (tabId, changed, tab) => {
 
 // Not sure if I need this one -
 // only reason I need it is for when one would toggle Enabled/Disabled
-// browser.tabs.onActivated.addListener(async ({ tabId }) => {
-// let tab = await browser.tabs.get(tabId);
-// await update_button_on_tab(tab);
-// });
+browser.tabs.onActivated.addListener(async ({ tabId }) => {
+  let tab = await browser.tabs.get(tabId);
+  await update_button_on_tab(tab);
+});
 
-browser.browserAction.onClicked.addListener(async tab => {
+browser.browserAction.onClicked.addListener(async (tab) => {
   let title = await browser.browserAction.getTitle({
-    tabId: tab.id
+    tabId: tab.id,
   });
 
   if (title === NEED_REFRESH_TITLE) {
@@ -300,13 +301,13 @@ browser.browserAction.onClicked.addListener(async tab => {
     await browser.storage.sync.remove([host]);
   } else {
     await browser.storage.sync.set({
-      [host]: true
+      [host]: true,
     });
   }
   await update_button_on_tab(tab);
 
   let tabs_with_same_host = await browser.tabs.query({
-    url: `*://${host}/*`
+    url: `*://${host}/*`,
   });
   for (let tab_with_same_host of tabs_with_same_host) {
     await update_button_on_tab(tab_with_same_host);

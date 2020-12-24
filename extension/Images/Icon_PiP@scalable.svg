@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="128px" height="128px" viewBox="0 0 128 128" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>Icon_PiP@scalable</title>
+    <g id="Icon_PiP" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <path d="M11,109.25 C34.6063344,109.25 52.3110852,109.25 64.1142523,109.25 C76.0888629,109.25 94.0507788,109.25 118,109.25 C121.45178,109.25 124.25,106.45178 124.25,103 L124.25,25 C124.25,21.5482203 121.45178,18.75 118,18.75 L11,18.75 C7.54822031,18.75 4.75,21.5482203 4.75,25 L4.75,103 C4.75,104.026175 4.9973083,104.994588 5.43557491,105.848889 M17.25,90.2094105 L17.25,31.25 L111.75,31.25 L111.75,96.75 L55.9076301,96.75 L17.25,96.75" id="Path-8" fill="#000000" fill-rule="nonzero"></path>
+        <rect id="Rectangle-2" stroke="#000000" stroke-width="10" fill="#000000" x="63" y="63" width="38" height="23" rx="2"></rect>
+        <path d="" id="Path-9" stroke="#979797"></path>
+    </g>
+</svg>
