@@ -235,8 +235,7 @@ let update_button_on_tab = async (tab) => {
 
   if (tab.status === "complete" && has_contentscript_active === false) {
     await apply_browser_action(tab.id, {
-      // icon: await tint_image(BROWSERACTION_ICON, "#D0021B"),
-      icon: await tint_image(BROWSERACTION_ICON, "#02d0d0"),
+      icon: await tint_image(BROWSERACTION_ICON, "#D0021B"),
       title: NEED_REFRESH_TITLE,
     });
     return;
