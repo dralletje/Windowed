@@ -6,7 +6,7 @@
     "name": "Michiel Dral",
     "url": "https://dral.eu/"
   },
-  "version": "25",
+  "version": "27",
   "manifest_version": 2,
   "permissions": ["storage", "tabs", "<all_urls>"],
   "applications": {
@@ -15,6 +15,7 @@
     }
   },
   "browser_action": {
+    "default_popup": "Popup/Popup.html",
     "default_icon": {
       "32": "/Images/Icon_Windowed_Mono@1x.png"
     }

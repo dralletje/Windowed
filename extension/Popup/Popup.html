@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+      body,
+      html {
+        margin: 0;
+        padding: 0;
+        background-color: white;
+      }
+      @media (prefers-color-scheme: dark) {
+        body,
+        html {
+          /* Explicit background color for firefox */
+          background-color: #1a1a1a;
+        }
+      }
+
+      .popup {
+        font-family: system-ui, sans-serif;
+        user-select: none;
+
+        background-color: white;
+        /* border-radius: 3px; */
+        /* border: solid #eee 1px; */
+        /* box-shadow: 0px 2px 4px #00000026; */
+        padding-top: 12px;
+        padding-bottom: 12px;
+        font-size: 16px;
+        color: black;
+        width: min-content;
+        min-width: 210px;
+        z-index: 2147483647;
+
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+      }
+      @media (prefers-color-scheme: dark) {
+        .popup {
+          filter: invert(0.9);
+        }
+      }
+
+      .popup:focus:not(:focus-visible) {
+        outline: none;
+      }
+
+      .popup [data-target] {
+        cursor: pointer;
+        padding: 1.25em;
+        padding-top: 0.25em;
+        padding-bottom: 0.25em;
+        background-color: white;
+
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+
+        font-size: inherit;
+        border: none;
+        box-shadow: none;
+
+        white-space: nowrap;
+      }
+
+      [data-target]::-moz-focus-inner,
+      .popup::-moz-focus-inner {
+        border: none;
+      }
+      [data-target]:focus {
+        filter: brightness(0.95);
+      }
+      [data-target]:focus:not(:focus-visible) {
+        outline: none;
+      }
+      [data-target]:hover {
+        filter: brightness(0.9);
+      }
+
+      [data-target] > input[type="radio"],
+      [data-target] > input[type="checkbox"] {
+        margin: 0;
+        margin-right: 16px;
+      }
+      [data-target] > img {
+        height: 1.2em;
+        width: 1.2em;
+        margin-right: 1em;
+      }
+    </style>
+    <style>
+      hide-if-no-picture-in-picture {
+        display: none;
+      }
+      .picture-in-picture-support hide-if-no-picture-in-picture {
+        all: inherit;
+      }
+
+      p {
+        all: unset;
+        display: block;
+        padding: 20px;
+        padding-bottom: 4px;
+        padding-top: 4px;
+        font-size: 14px;
+        color: #333;
+      }
+
+      button {
+        width: 100%;
+        min-height: 28px;
+        cursor: pointer;
+        padding: 1.25em;
+        padding-top: 0.25em;
+        padding-bottom: 0.25em;
+        background-color: white;
+
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+
+        font-size: inherit;
+        border: none;
+        box-shadow: none;
+
+        white-space: nowrap;
+      }
+
+      button::-moz-focus-inner {
+        border: none;
+      }
+      button:focus {
+        filter: brightness(0.95);
+      }
+      button:focus:not(:focus-visible) {
+        outline: none;
+      }
+      button:hover {
+        filter: brightness(0.9);
+      }
+
+      button > input[type="radio"],
+      button > input[type="checkbox"] {
+        margin: 0;
+        margin-right: 16px;
+      }
+      button > img {
+        height: 1.2em;
+        width: 1.2em;
+        margin-right: 1em;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="popup" tabindex="1">
+      <div id="something-bad">
+        <p>...</p>
+      </div>
+
+      <div id="disabled-because-security" style="display: none">
+        <p>For security reasons, Windowed is not supported on this domain.</p>
+      </div>
+
+      <div id="need-a-refresh" style="display: none">
+        <p>You need to refresh this page for Windowed to function properly</p>
+        <div style="height: 8px"></div>
+        <button class="reload">Reload page</button>
+      </div>
+
+      <div id="working" style="display: none">
+        <p>
+          Fullscreen on <i data-placeholder="domain">DOMAIN.COM</i> should
+          always:
+        </p>
+        <div style="height: 4px"></div>
+
+        <form>
+          <label data-target="ask" title="Ask">
+            <input type="radio" name="behaviour" value="ask" checked />
+            <img
+              src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+            />
+            <span>Ask</span>
+          </label>
+          <label data-target="windowed" title="Windowed">
+            <input type="radio" name="behaviour" value="windowed" />
+            <img src="../Images/Icon_Windowed@scalable.svg" />
+            <span>Windowed</span>
+          </label>
+          <label data-target="in-window" title="In-window">
+            <input type="radio" name="behaviour" value="in-window" />
+            <img src="../Images/Icon_InWindow_Mono@scalable.svg" />
+            <span>In-window</span>
+          </label>
+          <label data-target="fullscreen" title="Fullscreen">
+            <input type="radio" name="behaviour" value="fullscreen" />
+            <img src="../Images/Icon_EnterFullscreen@scalable.svg" />
+            <span>Fullscreen</span>
+          </label>
+          <hide-if-no-picture-in-picture>
+            <div style="height: 8px"></div>
+            <label
+              data-target="picture-in-picture"
+              title="Picture-in-Picture mode, only if supported by the page. This will overwrite the preference above (even ask)"
+            >
+              <input type="checkbox" name="picture_in_picture" />
+              <img src="../Images/Icon_PiP@scalable.svg" />
+              <span>PiP (if possible)</span>
+            </label>
+          </hide-if-no-picture-in-picture>
+        </form>
+      </div>
+    </div>
+    <script src="../Javascript/browser-polyfill.min.js"></script>
+    <script src="./Popup.js"></script>
+  </body>
+</html>

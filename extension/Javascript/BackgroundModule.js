@@ -72,17 +72,43 @@ let chrome_response = (fn) => async (request, sender, response_fn) => {
     };
   }
 };
-let is_disabled = async (tab) => {
+let clean_mode = (mode, disabled) => {
+  // Any other mode than the known ones are ignored
+  if (mode == "fullscreen" || mode == "windowed" || mode == "in-window") {
+    return mode;
+  }
+  return disabled === true ? "fullscreen" : "ask";
+};
+let get_host_config = async (tab) => {
   let host = new URL(tab.url).host;
-  let disabled = await browser.storage.sync.get([host]);
-  return disabled[host] === true;
+  let host_mode = `mode(${host})`;
+  let host_pip = `pip(${host})`;
+  let {
+    [host_mode]: mode,
+    [host]: disabled,
+    [host_pip]: pip,
+  } = await browser.storage.sync.get([host_mode, host, host_pip]);
+
+  return {
+    mode: clean_mode(mode, disabled),
+    pip: pip === true,
+  };
 };
 
 browser.runtime.onMessage.addListener(
   chrome_response(async (request, sender) => {
-    if (request.type === "is_windowed_enabled") {
-      let disabled = await is_disabled(sender.tab);
-      return !disabled;
+    if (request.type === "update_windowed_button") {
+      let tabs = request.id
+        ? [await browser.tabs.get(request.id)]
+        : await browser.tabs.query(request.query);
+      for (let tab of tabs) {
+        await update_button_on_tab(tab);
+      }
+      return;
+    }
+
+    if (request.type === "get_windowed_config") {
+      return await get_host_config(sender.tab);
     }
 
     // Detatch the current tab and put it into a standalone popup window
@@ -96,6 +122,7 @@ browser.runtime.onMessage.addListener(
       } = await browser.windows.get(sender.tab.windowId);
 
       // TODO Check possible 'panel' support in firefox
+      let frame = request.position;
       if (windowType === "popup") {
         // Already a popup, no need to re-create the window
         await browser.windows.update(
@@ -113,7 +140,6 @@ browser.runtime.onMessage.addListener(
         return;
       }
 
-      let frame = request.position;
       const created_window = await browser.windows.create(
         await firefix_window({
           tabId: sender.tab.id,
@@ -125,7 +151,13 @@ browser.runtime.onMessage.addListener(
           height: Math.round(frame.height + Chrome_Popup_Menubar_Height),
         }),
       );
-      // created_window.setAlwaysOnTop(true);
+
+      if (await is_firefox) {
+        await browser.windows.update(created_window.id, {
+          titlePreface: "Windowed: ",
+          focused: true,
+        });
+      }
       return;
     }
 
@@ -187,17 +219,20 @@ let ping_content_script = async (tabId) => {
 let icon_theme_color = async (tab) => {
   if (await is_firefox) {
     let theme = await browser.theme.getCurrent(tab.windowId);
-    console.log("Got theme");
-    if (theme != null && theme.colors != null && theme.colors.icons != null) {
-      console.log("And it's not null:", theme.colors.icons);
+    if (theme?.colors?.icons != null) {
       return theme.colors.icons;
     }
+    if (theme?.colors?.popup_text != null) {
+      return theme.colors.popup_text;
+    }
+    return window.matchMedia("(prefers-color-scheme: dark)").matches
+      ? "rgba(255,255,255,0.8)"
+      : "rgb(250, 247, 252)";
   }
 
-  console.log("Do it based on match media");
   return window.matchMedia("(prefers-color-scheme: dark)").matches
     ? "rgba(255,255,255,0.8)"
-    : "black";
+    : "#5f6368";
 };
 
 let notify_tab_state = async (tabId, properties) => {
@@ -224,7 +259,8 @@ let update_button_on_tab = async (tab) => {
     has_contentscript_active === false &&
     (tab.url.match(/^about:/) ||
       tab.url.match(/^chrome:\/\//) ||
-      tab.url.match(/^https?:\/\/chrome.google.com/))
+      tab.url.match(/^https?:\/\/chrome\.google\.com/) ||
+      tab.url.match(/^https?:\/\/support\.mozilla\.org/))
   ) {
     await apply_browser_action(tab.id, {
       icon: await tint_image(BROWSERACTION_ICON, "rgba(208, 2, 27, .22)"),
@@ -242,16 +278,26 @@ let update_button_on_tab = async (tab) => {
   }
 
   let host = new URL(tab.url).host;
-  if (await is_disabled(tab)) {
+  let config = await get_host_config(tab);
+  if (config.mode === "fullscreen" && config.pip === false) {
+    // ONLY FULLSCREEN - Dimmed icon because it is basically disabled
     await apply_browser_action(tab.id, {
       icon: await tint_image(BROWSERACTION_ICON, "rgba(133, 133, 133, 0.5)"),
       title: `Windowed is disabled on ${host}, click to re-activate`,
     });
     await notify_tab_state(tab.id, { disabled: true });
-  } else {
+  } else if (config.mode === "ask" && config.pip === false) {
+    // ONLY ASK - Normal white icon because this is "normal"
     await apply_browser_action(tab.id, {
       icon: await tint_image(BROWSERACTION_ICON, await icon_theme_color(tab)),
-      title: `Windowed is enabled on ${host}, click to disable`,
+      title: `Windowed is enabled on ${host}`,
+    });
+    await notify_tab_state(tab.id, { disabled: false });
+  } else {
+    // SOMETHING SPECIFIC - Light blue because now the extension is really changing your browsing explicitly
+    await apply_browser_action(tab.id, {
+      icon: await tint_image(BROWSERACTION_ICON, "#16a8a8"),
+      title: `Windowed is enabled on ${host}`,
     });
     await notify_tab_state(tab.id, { disabled: false });
   }
@@ -286,31 +332,28 @@ browser.tabs.onActivated.addListener(async ({ tabId }) => {
 });
 
 browser.browserAction.onClicked.addListener(async (tab) => {
-  let title = await browser.browserAction.getTitle({
-    tabId: tab.id,
-  });
-
-  if (title === NEED_REFRESH_TITLE) {
-    browser.tabs.reload(tab.id);
-    return;
-  }
-
-  let host = new URL(tab.url).host;
-  if (await is_disabled(tab)) {
-    await browser.storage.sync.remove([host]);
-  } else {
-    await browser.storage.sync.set({
-      [host]: true,
-    });
-  }
-  await update_button_on_tab(tab);
-
-  let tabs_with_same_host = await browser.tabs.query({
-    url: `*://${host}/*`,
-  });
-  for (let tab_with_same_host of tabs_with_same_host) {
-    await update_button_on_tab(tab_with_same_host);
-  }
+  // let title = await browser.browserAction.getTitle({
+  //   tabId: tab.id,
+  // });
+  // if (title === NEED_REFRESH_TITLE) {
+  //   browser.tabs.reload(tab.id);
+  //   return;
+  // }
+  // let host = new URL(tab.url).host;
+  // if (await is_disabled(tab)) {
+  //   await browser.storage.sync.remove([host]);
+  // } else {
+  //   await browser.storage.sync.set({
+  //     [host]: true,
+  //   });
+  // }
+  // await update_button_on_tab(tab);
+  // let tabs_with_same_host = await browser.tabs.query({
+  //   url: `*://${host}/*`,
+  // });
+  // for (let tab_with_same_host of tabs_with_same_host) {
+  //   await update_button_on_tab(tab_with_same_host);
+  // }
 });
 
 // TODO Change CSP headers on firefox to allow script injection?

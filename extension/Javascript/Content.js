@@ -107,11 +107,27 @@ let disable_selector = (element, key) => {
   delete element.dataset[key];
 };
 
-let is_windowed_disabled = async () => {
+let clean_mode = (mode, disabled) => {
+  // Any other mode than the known ones are ignored
+  if (mode == "fullscreen" || mode == "windowed" || mode == "in-window") {
+    return mode;
+  }
+  return disabled === true ? "fullscreen" : "ask";
+};
+let get_host_config_local = async () => {
   let host = window.location.host;
-  let disabled = await browser.storage.sync.get([host]);
-  // let is_enabled = await send_chrome_message({ type: 'is_windowed_enabled' });
-  return disabled[host] === true;
+  let host_mode = `mode(${host})`;
+  let host_pip = `pip(${host})`;
+  let {
+    [host_mode]: mode,
+    [host]: disabled,
+    [host_pip]: pip,
+  } = await browser.storage.sync.get([host_mode, host, host_pip]);
+
+  return {
+    mode: clean_mode(mode, disabled),
+    pip: pip === true,
+  };
 };
 
 let Button = ({ icon, title, text, target }) => `
@@ -231,8 +247,41 @@ const code_to_insert_in_page = on_webpage`{
       return "EXIT";
     }
 
-    if (await is_windowed_disabled()) {
-      return "NOT_ENABLED";
+    // Find possible picture-in-picture video element
+    let element = document.querySelector(`[data-${fullscreen_select}]`);
+    let video_element = element.querySelector("video");
+    video_element =
+      video_element != null &&
+      video_element.requestPictureInPicture != null &&
+      video_element.readyState >= 1 &&
+      !video_element.disablePictureInPicture
+        ? video_element
+        : null;
+
+    let { mode, pip } = await get_host_config_local();
+    if (pip === true && video_element != null) {
+      video_element.requestPictureInPicture();
+      onEscapePress(() => {
+        document.exitPictureInPicture();
+      });
+      return "PICTURE-IN-PICTURE";
+    }
+
+    if (mode === "fullscreen" || mode === "windowed" || mode === "in-window") {
+      if (mode === "fullscreen") {
+        let element = document.querySelector(`[data-${fullscreen_select}]`);
+        disable_selector(element, fullscreen_select);
+        element.requestFullscreen();
+        return "FULLSCREEN";
+      }
+      if (mode === "windowed") {
+        await go_into_fullscreen();
+        return "WINDOWED";
+      }
+      if (mode === "in-window") {
+        await go_in_window();
+        return "IN-WINDOW";
+      }
     }
 
     let popup_div = document.createElement("div");
@@ -240,15 +289,6 @@ const code_to_insert_in_page = on_webpage`{
     shadowRoot.appendChild(
       createElementFromHTML(`<style>${popup_css}</style>`),
     );
-
-    let element = document.querySelector(`[data-${fullscreen_select}]`);
-    let video_element = element.querySelector("video");
-    video_element =
-      video_element &&
-      video_element.readyState >= 1 &&
-      !video_element.disablePictureInPicture
-        ? video_element
-        : null;
 
     let clicked_element_still_exists =
       last_click_y != null && last_click_x != null; // && document.elementsFromPoint(last_click_x, last_click_y).includes(last_click_element)
@@ -425,8 +465,6 @@ const code_to_insert_in_page = on_webpage`{
     });
 
     clear_popup();
-
-    console.log(`result:`, result);
 
     if (result === "fullscreen") {
       // NOTE This is now all done sync in the popup callback.
@@ -713,7 +751,8 @@ let popup_css = `
 
   [data-target]::-moz-focus-inner,
   .popup::-moz-focus-inner {
-    border: none;
+    border: 0;
+    outline: 0;
   }
   [data-target]:focus {
     filter: brightness(0.95);
@@ -982,6 +1021,7 @@ let go_into_fullscreen = async () => {
 
   // Add no scroll to the body and let everything kick in
   enable_selector(document.body, body_class);
+  window.focus(); // idk
 };
 
 let go_out_of_fullscreen = async () => {
@@ -1153,8 +1193,14 @@ let onEscapePress = (fn) => {
 
 let check_disabled_state = async () => {
   try {
-    let disabled = await is_windowed_disabled();
-    window.postMessage({ type: "WINDOWED-notify", disabled: disabled }, "*");
+    let { mode, pip } = await get_host_config_local();
+    window.postMessage(
+      {
+        type: "WINDOWED-notify",
+        disabled: mode === "fullscreen" && pip === false,
+      },
+      "*",
+    );
   } catch (err) {
     // prettier-ignore
     console.warn(`[Windowed] Error while checking if windowed is enabled or not`, err)
