@@ -24,15 +24,14 @@
     {
       "run_at": "document_start",
       "matches": ["<all_urls>"],
-      "js": ["Javascript/browser-polyfill.min.js", "Javascript/Content.js"],
+      "js": ["Vendor/browser-polyfill.min.js", "Content.js"],
       "all_frames": true
     }
   ],
   "background": {
     "scripts": [
-      "Javascript/browser-polyfill.min.js",
-      "Javascript/tint_image.js",
-      "Javascript/BackgroundModule.js"
+      "Vendor/browser-polyfill.min.js",
+      "Background/BackgroundEntry.js"
     ],
     "persistent": false
   },

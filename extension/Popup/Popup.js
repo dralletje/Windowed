@@ -1,10 +1,18 @@
+import { browser } from "../Vendor/Browser.js";
+
+// interface BetterVideoElement extends HTMLVideoElement {
+//   requestPictureInPicture(): any;
+// }
+
 let run = (fn) => fn();
 
 let show_html_for = (id) => {
+  /** @type {NodeListOf<HTMLElement>} */
   let popup_divs = document.querySelectorAll(".popup > div");
   for (let div of popup_divs) {
     div.style.display = "none";
   }
+  /** @type {HTMLElement} */
   let to_show = document.querySelector(`.popup > ${id}`);
   to_show.style.display = null;
   return to_show;
@@ -91,6 +99,7 @@ let initialize_page = async () => {
     has_contentscript_active === false &&
     (tab.url.match(/^about:/) ||
       tab.url.match(/^chrome:\/\//) ||
+      tab.url.match(/^edge:\/\//) ||
       tab.url.match(/^https?:\/\/chrome\.google\.com/) ||
       tab.url.match(/^https?:\/\/support\.mozilla\.org/))
   ) {
@@ -107,6 +116,7 @@ let initialize_page = async () => {
     return;
   }
 
+  // @ts-ignore
   if (HTMLVideoElement.prototype.requestPictureInPicture != null) {
     document.body.classList.add("picture-in-picture-support");
   }
@@ -120,7 +130,9 @@ let initialize_page = async () => {
 
   let $root = await show_html_for("#working");
   let $form = $root.querySelector("form");
+  // @ts-ignore
   let behaviour_input = $form.elements.behaviour;
+  // @ts-ignore
   let picture_in_picture_input = $form.elements.picture_in_picture;
 
   $form.addEventListener("input", async (e) => {
@@ -140,3 +152,5 @@ let initialize_page = async () => {
 };
 
 run(initialize_page);
+
+export {};

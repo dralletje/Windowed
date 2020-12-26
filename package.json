@@ -19,9 +19,10 @@
   },
   "homepage": "https://github.com/dralletje/Windowed#readme",
   "devDependencies": {
-    "puppeteer": "^1.18.1",
     "node-fetch": "^2.6.0",
-    "web-ext": "^5.4.1"
+    "puppeteer": "^1.18.1",
+    "web-ext": "^5.4.1",
+    "webextension-polyfill-ts": "^0.22.0"
   },
   "prettier": {
     "trailingComma": "all"

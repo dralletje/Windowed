@@ -1,4 +1,4 @@
-let find_and_replace_alpha = color => {
+let find_and_replace_alpha = (color) => {
   let match = null;
   if (
     (match = color
@@ -10,7 +10,7 @@ let find_and_replace_alpha = color => {
     if (!Number.isNaN(alpha)) {
       return {
         color: `${before}1${after}`,
-        alpha: alpha
+        alpha: alpha,
       };
     } else {
       return { color, alpha: 1 };
@@ -23,7 +23,7 @@ let find_and_replace_alpha = color => {
     if (!Number.isNaN(alpha)) {
       return {
         color: `${before}`,
-        alpha: alpha
+        alpha: alpha,
       };
     } else {
       return { color, alpha: 1 };
@@ -34,7 +34,7 @@ let find_and_replace_alpha = color => {
 };
 
 let color_icon_cache = new Map();
-let tint_image = (url, color) => {
+export let tint_image = (url, color) => {
   let identifier = `${url}@${color}`;
   if (color_icon_cache.has(identifier)) {
     return color_icon_cache.get(identifier);
@@ -44,8 +44,6 @@ let tint_image = (url, color) => {
     return icon;
   }
 };
-
-window.tint_image = tint_image;
 
 let _color_icon = async (url, _color) => {
   let { color, alpha } = find_and_replace_alpha(_color);

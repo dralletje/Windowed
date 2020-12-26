@@ -1,7 +1,7 @@
 // Import is not yet allowed in firefox, so for now I put tint_image in manifest.json
-// import { tint_image } from './tint_image.js';
+import { tint_image } from "./tint_image.js";
+import { browser } from "../Vendor/Browser.js";
 
-let NEED_REFRESH_TITLE = `This page needs to be reloaded for Windowed to activate. Click here to reload.`;
 let BROWSERACTION_ICON = "/Images/Icon_Windowed_Mono@1x.png";
 
 let browser_info_promise = browser.runtime.getBrowserInfo
@@ -33,6 +33,7 @@ let firefix_window = async (window_properties) => {
 // In case of none being found, null is returned and the caller should make a new window himself (with the tab attached)
 const get_fallback_window = async (windowId) => {
   const first_fallback_window = await browser.windows.getLastFocused({
+    // @ts-ignore
     windowTypes: ["normal"],
   });
 
@@ -61,17 +62,6 @@ const get_fallback_window = async (windowId) => {
 // (and check the size of it's current header itself)
 const Chrome_Popup_Menubar_Height = 22; // Do `window.outerHeight - window.innerHeight` in a popup tab
 
-let chrome_response = (fn) => async (request, sender, response_fn) => {
-  try {
-    let result = await fn(request, sender);
-    return { type: "resolve", value: result };
-  } catch (err) {
-    return {
-      type: "reject",
-      value: { message: err.message, stack: err.stack },
-    };
-  }
-};
 let clean_mode = (mode, disabled) => {
   // Any other mode than the known ones are ignored
   if (mode == "fullscreen" || mode == "windowed" || mode == "in-window") {
@@ -95,103 +85,117 @@ let get_host_config = async (tab) => {
   };
 };
 
-browser.runtime.onMessage.addListener(
-  chrome_response(async (request, sender) => {
-    if (request.type === "update_windowed_button") {
-      let tabs = request.id
-        ? [await browser.tabs.get(request.id)]
-        : await browser.tabs.query(request.query);
-      for (let tab of tabs) {
-        await update_button_on_tab(tab);
-      }
-      return;
-    }
-
-    if (request.type === "get_windowed_config") {
-      return await get_host_config(sender.tab);
-    }
-
-    // Detatch the current tab and put it into a standalone popup window
-    if (request.type === "please_make_me_a_popup") {
-      // TODO Save windowId and index inside that window,
-      // so when you "pop" it back, it will go where you opened it
-      let {
-        left: screenLeft,
-        top: screenTop,
-        type: windowType,
-      } = await browser.windows.get(sender.tab.windowId);
-
-      // TODO Check possible 'panel' support in firefox
-      let frame = request.position;
-      if (windowType === "popup") {
-        // Already a popup, no need to re-create the window
-        await browser.windows.update(
-          sender.tab.windowId,
-          await firefix_window({
-            focused: true,
-            left: Math.round(screenLeft + frame.left),
-            top: Math.round(
-              screenTop + frame.top - Chrome_Popup_Menubar_Height,
-            ),
-            width: Math.round(frame.width),
-            height: Math.round(frame.height + Chrome_Popup_Menubar_Height),
-          }),
-        );
-        return;
-      }
-
-      const created_window = await browser.windows.create(
-        await firefix_window({
-          tabId: sender.tab.id,
-          type: "popup",
-          focused: true,
-          left: Math.round(screenLeft + frame.left),
-          top: Math.round(screenTop + frame.top - Chrome_Popup_Menubar_Height),
-          width: Math.round(frame.width),
-          height: Math.round(frame.height + Chrome_Popup_Menubar_Height),
-        }),
-      );
-
-      if (await is_firefox) {
-        await browser.windows.update(created_window.id, {
-          titlePreface: "Windowed: ",
-          focused: true,
+/**
+ * @param {string} type
+ * @param {(message: any, sender: import("webextension-polyfill-ts").Runtime.MessageSender) => Promise<any>} fn
+ * @return {void}
+ */
+let onMessage = (type, fn) => {
+  browser.runtime.onMessage.addListener((message, sender) => {
+    if (message?.type === type) {
+      return fn(message, sender)
+        .then((result) => {
+          return { type: "resolve", value: result };
+        })
+        .catch((err) => {
+          return {
+            type: "reject",
+            value: { message: err.message, stack: err.stack },
+          };
         });
-      }
-      return;
     }
+  });
+};
 
-    /*
-		Take the current tab, and put it into a tab-ed window again.
-		1. Last focussed window
-		2. Other tab-containing window (not popups without tab bar)
-		3. New window we create
-	*/
-    if (request.type === "please_make_me_a_tab_again") {
-      let { type: windowType } = await browser.windows.get(sender.tab.windowId);
-      if (windowType === "normal") {
-        return;
-      }
+onMessage("update_windowed_button", async (message, sender) => {
+  let tabs = message.id
+    ? [await browser.tabs.get(message.id)]
+    : await browser.tabs.query(message.query);
+  for (let tab of tabs) {
+    await update_button_on_tab(tab);
+  }
+});
 
-      let fallback_window = await get_fallback_window(sender.tab.windowId);
+onMessage("get_windowed_config", async (message, sender) => {
+  return await get_host_config(sender.tab);
+});
 
-      if (fallback_window) {
-        await browser.tabs.move(sender.tab.id, {
-          windowId: fallback_window.id,
-          index: -1,
-        });
-        await browser.tabs.update(sender.tab.id, { active: true });
-      } else {
-        // No other window open: create a new window with tabs
-        let create_window_with_tabs = await browser.windows.create({
-          tabId: sender.tab.id,
-          type: "normal",
-        });
-      }
-      return;
-    }
-  }),
-);
+// Detatch the current tab and put it into a standalone popup window
+onMessage("please_make_me_a_popup", async (message, sender) => {
+  // TODO Save windowId and index inside that window,
+  // so when you "pop" it back, it will go where you opened it
+  let {
+    left: screenLeft,
+    top: screenTop,
+    type: windowType,
+  } = await browser.windows.get(sender.tab.windowId);
+
+  // TODO Check possible 'panel' support in firefox
+  let frame = message.position;
+  if (windowType === "popup") {
+    // Already a popup, no need to re-create the window
+    await browser.windows.update(
+      sender.tab.windowId,
+      await firefix_window({
+        focused: true,
+        left: Math.round(screenLeft + frame.left),
+        top: Math.round(screenTop + frame.top - Chrome_Popup_Menubar_Height),
+        width: Math.round(frame.width),
+        height: Math.round(frame.height + Chrome_Popup_Menubar_Height),
+      }),
+    );
+    return;
+  }
+
+  const created_window = await browser.windows.create(
+    await firefix_window({
+      tabId: sender.tab.id,
+      type: "popup",
+      focused: true,
+      left: Math.round(screenLeft + frame.left),
+      top: Math.round(screenTop + frame.top - Chrome_Popup_Menubar_Height),
+      width: Math.round(frame.width),
+      height: Math.round(frame.height + Chrome_Popup_Menubar_Height),
+    }),
+  );
+
+  if (await is_firefox) {
+    await browser.windows.update(created_window.id, {
+      titlePreface: "Windowed: ",
+      focused: true,
+    });
+  }
+  return;
+});
+
+/*
+Take the current tab, and put it into a tab-ed window again.
+1. Last focussed window
+2. Other tab-containing window (not popups without tab bar)
+3. New window we create
+*/
+onMessage("please_make_me_a_tab_again", async (message, sender) => {
+  let { type: windowType } = await browser.windows.get(sender.tab.windowId);
+  if (windowType === "normal") {
+    return;
+  }
+
+  let fallback_window = await get_fallback_window(sender.tab.windowId);
+
+  if (fallback_window) {
+    await browser.tabs.move(sender.tab.id, {
+      windowId: fallback_window.id,
+      index: -1,
+    });
+    await browser.tabs.update(sender.tab.id, { active: true });
+  } else {
+    // No other window open: create a new window with tabs
+    let create_window_with_tabs = await browser.windows.create({
+      tabId: sender.tab.id,
+      type: "normal",
+    });
+  }
+});
 
 let current_port_promises = {};
 let ping_content_script = async (tabId) => {
@@ -259,6 +263,7 @@ let update_button_on_tab = async (tab) => {
     has_contentscript_active === false &&
     (tab.url.match(/^about:/) ||
       tab.url.match(/^chrome:\/\//) ||
+      tab.url.match(/^edge:\/\//) ||
       tab.url.match(/^https?:\/\/chrome\.google\.com/) ||
       tab.url.match(/^https?:\/\/support\.mozilla\.org/))
   ) {
@@ -272,7 +277,8 @@ let update_button_on_tab = async (tab) => {
   if (tab.status === "complete" && has_contentscript_active === false) {
     await apply_browser_action(tab.id, {
       icon: await tint_image(BROWSERACTION_ICON, "#D0021B"),
-      title: NEED_REFRESH_TITLE,
+      title:
+        "This page needs to be reloaded for Windowed to activate. Click here to reload.",
     });
     return;
   }
@@ -330,45 +336,3 @@ browser.tabs.onActivated.addListener(async ({ tabId }) => {
   let tab = await browser.tabs.get(tabId);
   await update_button_on_tab(tab);
 });
-
-browser.browserAction.onClicked.addListener(async (tab) => {
-  // let title = await browser.browserAction.getTitle({
-  //   tabId: tab.id,
-  // });
-  // if (title === NEED_REFRESH_TITLE) {
-  //   browser.tabs.reload(tab.id);
-  //   return;
-  // }
-  // let host = new URL(tab.url).host;
-  // if (await is_disabled(tab)) {
-  //   await browser.storage.sync.remove([host]);
-  // } else {
-  //   await browser.storage.sync.set({
-  //     [host]: true,
-  //   });
-  // }
-  // await update_button_on_tab(tab);
-  // let tabs_with_same_host = await browser.tabs.query({
-  //   url: `*://${host}/*`,
-  // });
-  // for (let tab_with_same_host of tabs_with_same_host) {
-  //   await update_button_on_tab(tab_with_same_host);
-  // }
-});
-
-// TODO Change CSP headers on firefox to allow script injection?
-// browser.webRequest.onBeforeRequest.addListener(request => {
-// 	console.log('HEY~', request);
-// 	var headers = details.responseHeaders;
-// 	return {
-// 		responseHeaders: headers.map(header => {
-// 			const name = header.name.toLowerCase();
-// 			console.log(`header:`, header)
-// 			if (name !== "content-security-policy" && name !== "x-webkit-csp") {
-// 				return header;
-// 			} else {
-// 				return header;
-// 			}
-// 		}),
-// 	};
-// }, { urls: ["<all_urls>"], types: ['main_frame', 'sub_frame'] }, ['blocking', 'responseHeaders']);

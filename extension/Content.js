@@ -1,3 +1,11 @@
+// This file is by far the most important of the whole extension.
+// This gets loaded into every single page you open, so I have to keep it as light as possible.
+// Sounds a bit a weird, for a file with 1200 lines, but I want it to so light that I need
+// more rather than less code. No modules or anything fance like that
+
+// @ts-ignore
+const browser = /** @type {import("webextension-polyfill-ts").Browser} */ (globalThis.browser);
+
 const fullscreen_id_namespace = `windowed_long_id_that_does_not_conflict`;
 
 const fullscreen_select = `${fullscreen_id_namespace}_select`;
@@ -7,6 +15,14 @@ const fullscreen_parent = `${fullscreen_id_namespace}_parent`;
 const body_class = `${fullscreen_id_namespace}_body`;
 
 const max_z_index = "2147483647";
+
+/**
+ * @typedef PictureInPictureVideoElement
+ * @type {HTMLVideoElement & {
+ *  requestPictureInPicture(): Promise<void>,
+ *  disablePictureInPicture: boolean,
+ * }}
+ */
 
 // Aliasses for different browsers (rest of aliasses are in the inserted script)
 let fullscreenchange_aliasses = [
@@ -115,19 +131,9 @@ let clean_mode = (mode, disabled) => {
   return disabled === true ? "fullscreen" : "ask";
 };
 let get_host_config_local = async () => {
-  let host = window.location.host;
-  let host_mode = `mode(${host})`;
-  let host_pip = `pip(${host})`;
-  let {
-    [host_mode]: mode,
-    [host]: disabled,
-    [host_pip]: pip,
-  } = await browser.storage.sync.get([host_mode, host, host_pip]);
-
-  return {
-    mode: clean_mode(mode, disabled),
-    pip: pip === true,
-  };
+  return await send_chrome_message({
+    type: "get_windowed_config",
+  });
 };
 
 let Button = ({ icon, title, text, target }) => `
@@ -244,12 +250,14 @@ const code_to_insert_in_page = on_webpage`{
     let is_fullscreen = await external_function_parent("is_fullscreen")();
     if (is_fullscreen) {
       await go_out_of_fullscreen();
-      return "EXIT";
+      return;
     }
 
     // Find possible picture-in-picture video element
     let element = document.querySelector(`[data-${fullscreen_select}]`);
-    let video_element = element.querySelector("video");
+    let video_element = /** @type {PictureInPictureVideoElement} */ (element.querySelector(
+      "video",
+    ));
     video_element =
       video_element != null &&
       video_element.requestPictureInPicture != null &&
@@ -262,6 +270,7 @@ const code_to_insert_in_page = on_webpage`{
     if (pip === true && video_element != null) {
       video_element.requestPictureInPicture();
       onEscapePress(() => {
+        // @ts-ignore
         document.exitPictureInPicture();
       });
       return "PICTURE-IN-PICTURE";
@@ -414,6 +423,8 @@ const code_to_insert_in_page = on_webpage`{
       `);
       shadowRoot.appendChild(popup);
     }
+
+    /** @type {HTMLElement} */
     let popup_element = shadowRoot.querySelector(`.popup`);
     setTimeout(() => {
       popup_element.focus();
@@ -422,9 +433,19 @@ const code_to_insert_in_page = on_webpage`{
     document.body.appendChild(popup_div);
     last_popup = popup_div;
 
+    /** @type {"windowed" | "in-window" | "fullscreen" | "picture-in-picture" | "nothing"} */
     let result = await new Promise((resolve) => {
+      popup_element.addEventListener("focusout", (event) => {
+        // @ts-ignore
+        if (!event.currentTarget.contains(event.relatedTarget)) {
+          resolve("nothing");
+        }
+      });
+
       // For people who like keyboard shortcuts
-      popup_element.addEventListener("keydown", (event) => {
+      popup_element.addEventListener("keydown", (
+        /** @type {KeyboardEvent} */ event,
+      ) => {
         if (event.key === "w") {
           event.stopPropagation();
           resolve("windowed");
@@ -433,7 +454,7 @@ const code_to_insert_in_page = on_webpage`{
           event.stopPropagation();
           resolve("in-window");
         }
-        if (event.key === "f" || event.key === "Escape") {
+        if (event.key === "f") {
           event.stopPropagation();
 
           // I need this check here, because I can't call the original fullscreen from a
@@ -448,18 +469,24 @@ const code_to_insert_in_page = on_webpage`{
           event.stopPropagation();
           resolve("picture-in-picture");
         }
+        if (event.key === "Escape") {
+          event.stopPropagation();
+          resolve("nothing");
+        }
       });
 
       for (let button of shadowRoot.querySelectorAll(`[data-target]`)) {
         button.addEventListener("click", (e) => {
-          if (button.dataset.target === "fullscreen") {
+          // @ts-ignore
+          let target_keyword = button.dataset.target;
+          if (target_keyword === "fullscreen") {
             // I need this check here, because I can't call the original fullscreen from a
             // 'async' function (or anywhere async (eg. after `resolve()` is called))
             let element = document.querySelector(`[data-${fullscreen_select}]`);
             disable_selector(element, fullscreen_select);
             element.requestFullscreen();
           }
-          resolve(button.dataset.target);
+          resolve(target_keyword);
         });
       }
     });
@@ -483,14 +510,14 @@ const code_to_insert_in_page = on_webpage`{
       video_element.requestPictureInPicture();
 
       onEscapePress(() => {
+        // @ts-ignore
         document.exitPictureInPicture();
       });
 
       return "PICTURE-IN-PICTURE";
     }
-    if (result === "exit") {
-      await go_out_of_fullscreen();
-      return "EXIT";
+    if (result === "nothing") {
+      return "NOTHING";
     }
   }}
 
@@ -532,10 +559,7 @@ const code_to_insert_in_page = on_webpage`{
     // window.postMessage({ type: force ? "enter_fullscreen" : "show_fullscreen_popup" }, "*");
     // send_windowed_event(element, force ? "enter_fullscreen" : "show_fullscreen_popup");
     try {
-      let next = await create_popup();
-      if (next === 'NOT_ENABLED') {
-        original();
-      }
+      await create_popup();
     } catch (err) {
       // Anything gone wrong, we default to normal fullscreen
       console.error(err);
@@ -577,32 +601,33 @@ const code_to_insert_in_page = on_webpage`{
   }
 
   window.onmessage = (message) => {
-    const frame = [...document.querySelectorAll('iframe')].find(x => x.contentWindow === message.source);
-
-    if (frame || window.parent === message.source || message.target === message.source) {
-      if (message.data && message.data.type === 'WINDOWED-confirm-fullscreen') {
+    // Message from content script or parent content script
+    if (message.source === message.target || message.source === window.parent) {
+      if (message.data?.type === 'WINDOWED-confirm-fullscreen') {
         finish_fullscreen();
       }
 
-      if (message.data && message.data.type === 'WINDOWED-exit-fullscreen') {
+      if (message.data?.type === 'WINDOWED-exit-fullscreen') {
         exitFullscreen.call(document, original_exitFullscreen);
       }
 
-      if (message.data && message.data.type === 'WINDOWED-notify') {
+      if (message.data?.type === 'WINDOWED-notify') {
         MUTATE_is_windowed_enabled = !message.data.disabled;
       }
     }
 
-    if (frame != null && message.data) {
-      if (message.data.type === 'enter_inwindow_iframe') {
+    // Message from frame inside the page (these are tricky not sure if I still know how this works)
+    const frame = [...document.querySelectorAll('iframe')].find(x => x.contentWindow === message.source);
+    if (frame != null) {
+      if (message.data?.type === 'enter_inwindow_iframe') {
         frame.dataset['${fullscreen_select}'] = true;
         make_tab_go_inwindow();
       }
-      if (message.data.type === 'enter_fullscreen_iframe') {
+      if (message.data?.type === 'enter_fullscreen_iframe') {
         frame.dataset['${fullscreen_select}'] = true;
         make_tab_go_fullscreen();
       }
-      if (message.data.type === 'exit_fullscreen_iframe') {
+      if (message.data?.type === 'exit_fullscreen_iframe') {
         // Call my exitFullscreen on the document
         exitFullscreen.call(document, original_exitFullscreen);
       }
@@ -647,12 +672,8 @@ document.documentElement.removeChild(elt);
 const send_event = (element, type) => {
   const event = new Event(type, {
     bubbles: true,
-    cancelBubble: false,
     cancelable: false,
   });
-  // if (element[\`on\${type}\`]) {
-  //   element[\`on\${type}\`](event);
-  // }
   element.dispatchEvent(event);
 };
 
@@ -831,6 +852,9 @@ const parent_elements = function* (element) {
   }
 };
 
+/**
+ * @param {{ type: string, [key: string]: any }} message
+ */
 let send_chrome_message = async (message) => {
   let { type, value } = await browser.runtime.sendMessage(message);
   if (type === "resolve") {
@@ -932,6 +956,7 @@ let go_in_window = async () => {
     window.parent.postMessage({ type: "enter_inwindow_iframe" }, "*");
   }
 
+  // Post back to in-page javascript
   window.postMessage({ type: "WINDOWED-confirm-fullscreen" }, "*");
 
   // Add no scroll to the body and let everything kick in
@@ -956,7 +981,11 @@ let go_into_fullscreen = async () => {
           go_into_fullscreen();
 
           await delay(500);
-          if (cloned.contentWindow && cloned.contentWindow.postMessage) {
+          if (
+            (cloned instanceof HTMLIFrameElement ||
+              cloned instanceof HTMLObjectElement) &&
+            cloned.contentWindow?.postMessage
+          ) {
             cloned.contentWindow.postMessage(
               { type: "WINDOWED-confirm-fullscreen" },
               "*",
@@ -1017,6 +1046,7 @@ let go_into_fullscreen = async () => {
     });
   }
 
+  // Post back to the javascript we put inside the page
   window.postMessage({ type: "WINDOWED-confirm-fullscreen" }, "*");
 
   // Add no scroll to the body and let everything kick in
@@ -1075,6 +1105,7 @@ window.addEventListener("message", async (event) => {
     let fn = external_functions[event.data.function_id];
     try {
       let result = await fn(...event.data.args);
+      // @ts-ignore
       event.source.postMessage(
         {
           type: "CUSTOM_WINDOWED_TO_PAGE",
@@ -1085,6 +1116,7 @@ window.addEventListener("message", async (event) => {
         "*",
       );
     } catch (err) {
+      // @ts-ignore
       event.source.postMessage(
         {
           type: "CUSTOM_WINDOWED_TO_PAGE",
