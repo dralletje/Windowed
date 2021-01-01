@@ -322,10 +322,22 @@ const code_to_insert_in_page = on_webpage`{
           left: ${last_click_x}px;
           transform: ${top_vs_bottom} ${left_vs_right};
         ">
+          ${
+            video_element
+              ? Button({
+                  icon: browser.extension.getURL(
+                    "Images/Icon_PiP@scalable.svg",
+                  ),
+                  text: "PiP",
+                  title: "Picture-in-picture (p)",
+                  target: "picture-in-picture",
+                })
+              : ""
+          }
           ${Button({
             icon: browser.extension.getURL("Images/Icon_Windowed@scalable.svg"),
             text: "Windowed",
-            title: "Windowed (f)",
+            title: "Windowed (w)",
             target: "windowed",
           })}
           ${Button({
@@ -344,18 +356,6 @@ const code_to_insert_in_page = on_webpage`{
             title: "Fullscreen (f)",
             target: "fullscreen",
           })}
-          ${
-            video_element
-              ? Button({
-                  icon: browser.extension.getURL(
-                    "Images/Icon_PiP@scalable.svg",
-                  ),
-                  text: "PiP",
-                  title: "Picture-in-picture (p)",
-                  target: "picture-in-picture",
-                })
-              : ""
-          }
         </div>
       `);
       shadowRoot.appendChild(popup);
@@ -382,12 +382,24 @@ const code_to_insert_in_page = on_webpage`{
           ">
             <div style="padding: 1.25em; padding-bottom: 0.25em; padding-top: 0.25em">Enter fullscreen</div>
             <div style="height: 10px"></div>
+            ${
+              video_element
+                ? Button({
+                    icon: browser.extension.getURL(
+                      "Images/Icon_PiP@scalable.svg",
+                    ),
+                    text: "PiP",
+                    title: "Picture in picture (p)",
+                    target: "picture-in-picture",
+                  })
+                : ""
+            }
             ${Button({
               icon: browser.extension.getURL(
                 "Images/Icon_Windowed@scalable.svg",
               ),
               text: "Windowed",
-              title: "Windowed (f)",
+              title: "Windowed (w)",
               target: "windowed",
             })}
             ${Button({
@@ -406,18 +418,6 @@ const code_to_insert_in_page = on_webpage`{
               title: "Fullscreen (f)",
               target: "fullscreen",
             })}
-            ${
-              video_element
-                ? Button({
-                    icon: browser.extension.getURL(
-                      "Images/Icon_PiP@scalable.svg",
-                    ),
-                    text: "PiP",
-                    title: "Picture in picture (p)",
-                    target: "picture-in-picture",
-                  })
-                : ""
-            }
           </div>
         </div>
       `);
