@@ -11,6 +11,9 @@ let is_firefox = browser_info_promise.then(
   (browser_info) => browser_info.name === "Firefox",
 );
 
+/**
+ * @param {import("webextension-polyfill-ts").Windows.Window} window
+ */
 let is_valid_window = (window) => {
   return (
     window.incognito === false &&
@@ -19,6 +22,12 @@ let is_valid_window = (window) => {
   );
 };
 
+/**
+ * Firefox can't take the `focused` property to browser.windows.create/update
+ * So I just take it out when using firefox 🤷‍♀️
+ * @param {import("webextension-polyfill-ts").Windows.CreateCreateDataType} window_properties
+ * @returns {Promise<import("webextension-polyfill-ts").Windows.CreateCreateDataType>}
+ */
 let firefix_window = async (window_properties) => {
   let is_it_firefox = await is_firefox;
   if (is_it_firefox) {
@@ -31,6 +40,10 @@ let firefix_window = async (window_properties) => {
 
 // Get a window to put our tab on: either the last focussed, a random, or none;
 // In case of none being found, null is returned and the caller should make a new window himself (with the tab attached)
+/**
+ * @param {number} windowId
+ * @returns {Promise<import("webextension-polyfill-ts").Windows.Window>}
+ */
 const get_fallback_window = async (windowId) => {
   const first_fallback_window = await browser.windows.getLastFocused({
     // @ts-ignore
@@ -62,6 +75,16 @@ const get_fallback_window = async (windowId) => {
 // (and check the size of it's current header itself)
 const Chrome_Popup_Menubar_Height = 22; // Do `window.outerHeight - window.innerHeight` in a popup tab
 
+/**
+ * @typedef WindowedMode
+ * @type {"fullscreen" | "windowed" | "in-window" | "fullscreen" | "ask"}
+ */
+
+/**
+ * @param {string} mode
+ * @param {boolean} disabled
+ * @returns {WindowedMode}
+ */
 let clean_mode = (mode, disabled) => {
   // Any other mode than the known ones are ignored
   if (mode == "fullscreen" || mode == "windowed" || mode == "in-window") {
@@ -69,6 +92,7 @@ let clean_mode = (mode, disabled) => {
   }
   return disabled === true ? "fullscreen" : "ask";
 };
+/** @param {import("webextension-polyfill-ts").Tabs.Tab} tab */
 let get_host_config = async (tab) => {
   let host = new URL(tab.url).host;
   let host_mode = `mode(${host})`;
@@ -86,6 +110,7 @@ let get_host_config = async (tab) => {
 };
 
 /**
+ * Wrapper to do some basic routing on extension messaging
  * @param {string} type
  * @param {(message: any, sender: import("webextension-polyfill-ts").Runtime.MessageSender) => Promise<any>} fn
  * @return {void}
@@ -120,7 +145,7 @@ onMessage("get_windowed_config", async (message, sender) => {
   return await get_host_config(sender.tab);
 });
 
-// Detatch the current tab and put it into a standalone popup window
+/** Detatch the current tab and put it into a standalone popup window */
 onMessage("please_make_me_a_popup", async (message, sender) => {
   // TODO Save windowId and index inside that window,
   // so when you "pop" it back, it will go where you opened it
@@ -168,12 +193,12 @@ onMessage("please_make_me_a_popup", async (message, sender) => {
   return;
 });
 
-/*
-Take the current tab, and put it into a tab-ed window again.
-1. Last focussed window
-2. Other tab-containing window (not popups without tab bar)
-3. New window we create
-*/
+/**
+ * Take the current tab, and put it into a tab-ed window again.
+ * 1. Last focussed window
+ * 2. Other tab-containing window (not popups without tab bar)
+ * 3. New window we create
+ */
 onMessage("please_make_me_a_tab_again", async (message, sender) => {
   let { type: windowType } = await browser.windows.get(sender.tab.windowId);
   if (windowType === "normal") {
@@ -197,7 +222,13 @@ onMessage("please_make_me_a_tab_again", async (message, sender) => {
   }
 });
 
+/** @type {{ [tabid: number]: Promise<boolean> }} */
 let current_port_promises = {};
+/**
+ * Check if we can connect with the Windowed content script in a tab
+ * @param {number} tabId
+ * @returns {Promise<boolean>}
+ */
 let ping_content_script = async (tabId) => {
   try {
     if (current_port_promises[tabId] != null) {
@@ -220,6 +251,13 @@ let ping_content_script = async (tabId) => {
   }
 };
 
+/**
+ * Tries to figure out the default icon color
+ * - Tries to use the current theme on firefox
+ * - Else defaults to light and dark mode
+ * @param {import("webextension-polyfill-ts").Tabs.Tab} tab
+ * @returns {Promise<string>}
+ */
 let icon_theme_color = async (tab) => {
   if (await is_firefox) {
     let theme = await browser.theme.getCurrent(tab.windowId);
@@ -239,11 +277,23 @@ let icon_theme_color = async (tab) => {
     : "#5f6368";
 };
 
+/**
+ * This looks a bit weird (and honestly it is) but it opens a port to the content script on a page,
+ * and then the page knows it should reload it's settings.
+ * TODO? Should I close the port?
+ * @param {number} tabId
+ * @param {any} properties
+ */
 let notify_tab_state = async (tabId, properties) => {
   let port = browser.tabs.connect(tabId);
   // port.postMessage(JSON.stringify({ method: 'notify', data: properties }))
 };
 
+/**
+ * Shorthand for setting the browser action icon on a tab
+ * @param {number} tabId
+ * @param {{ icon: ImageData, title: string }} action
+ */
 let apply_browser_action = async (tabId, action) => {
   await browser.browserAction.setIcon({
     tabId: tabId,
@@ -255,10 +305,26 @@ let apply_browser_action = async (tabId, action) => {
   });
 };
 
+/**
+ * @param {import("webextension-polyfill-ts").Tabs.Tab} tab
+ */
 let update_button_on_tab = async (tab) => {
   let has_contentscript_active =
     tab.status === "complete" && (await ping_content_script(tab.id));
 
+  // A specific exception for about:blank so, on firefox,
+  // when you customize your menu bar, windowed is at it's most beautiful.
+  if (has_contentscript_active === false && tab.url === "about:blank") {
+    await apply_browser_action(tab.id, {
+      icon: await tint_image(BROWSERACTION_ICON, await icon_theme_color(tab)),
+      title: `Windowed`,
+    });
+    return;
+  }
+
+  // On some domains windowed will never work, because it is blocked by the browser.
+  // To avoid user confusion with the "You have to reload" message,
+  // I show a descriptive error 💁‍♀️
   if (
     has_contentscript_active === false &&
     (tab.url.match(/^about:/) ||
@@ -269,11 +335,13 @@ let update_button_on_tab = async (tab) => {
   ) {
     await apply_browser_action(tab.id, {
       icon: await tint_image(BROWSERACTION_ICON, "rgba(208, 2, 27, .22)"),
-      title: "For security reasons, windowed is not supported on this domain.",
+      title: `For security reasons, windowed is not supported on this domain (${tab.url}).`,
     });
     return;
   }
 
+  // So if the tab is loaded, and it is not an extra secure domain,
+  // it means windowed is not loaded for some reason. So I tell that.
   if (tab.status === "complete" && has_contentscript_active === false) {
     await apply_browser_action(tab.id, {
       icon: await tint_image(BROWSERACTION_ICON, "#D0021B"),
@@ -283,6 +351,8 @@ let update_button_on_tab = async (tab) => {
     return;
   }
 
+  // From here I figure out what the user has configured for Windowed on this domain,
+  // and show a specific icon and title for each of those.
   let host = new URL(tab.url).host;
   let config = await get_host_config(tab);
   if (config.mode === "fullscreen" && config.pip === false) {
@@ -321,18 +391,16 @@ browser.tabs.onUpdated.addListener(async (tabId, changed, tab) => {
     await update_button_on_tab(tab);
   }
 });
-
-// Because I load this as a module now,
-(async () => {
-  let all_tabs = await browser.tabs.query({});
-  for (let tab of all_tabs) {
-    await update_button_on_tab(tab);
-  }
-})();
-
 // Not sure if I need this one -
 // only reason I need it is for when one would toggle Enabled/Disabled
 browser.tabs.onActivated.addListener(async ({ tabId }) => {
   let tab = await browser.tabs.get(tabId);
   await update_button_on_tab(tab);
 });
+// Because I load this as a module now, I am making sure this code is ran as much as possible
+(async () => {
+  let all_tabs = await browser.tabs.query({});
+  for (let tab of all_tabs) {
+    await update_button_on_tab(tab);
+  }
+})();

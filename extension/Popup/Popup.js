@@ -1,11 +1,9 @@
 import { browser } from "../Vendor/Browser.js";
 
-// interface BetterVideoElement extends HTMLVideoElement {
-//   requestPictureInPicture(): any;
-// }
-
+/** @param {() => unknown} fn */
 let run = (fn) => fn();
 
+/** @param {string} id */
 let show_html_for = (id) => {
   /** @type {NodeListOf<HTMLElement>} */
   let popup_divs = document.querySelectorAll(".popup > div");
@@ -18,6 +16,10 @@ let show_html_for = (id) => {
   return to_show;
 };
 
+/**
+ * Function that works with my Extension Messaging Wrapper for nice error handling
+ * @param {any} message
+ * */
 let send_chrome_message = async (message) => {
   let { type, value } = await browser.runtime.sendMessage(message);
   if (type === "resolve") {
@@ -34,6 +36,11 @@ let send_chrome_message = async (message) => {
   }
 };
 
+/**
+ * @param {string} mode
+ * @param {boolean} disabled
+ * @returns {import("../Background/BackgroundModule.js").WindowedMode}
+ */
 let clean_mode = (mode, disabled) => {
   // Any other mode than the known ones are ignored
   if (mode == "fullscreen" || mode == "windowed" || mode == "in-window") {
@@ -41,6 +48,7 @@ let clean_mode = (mode, disabled) => {
   }
   return disabled === true ? "fullscreen" : "ask";
 };
+/** @param {import("webextension-polyfill-ts").Tabs.Tab} tab */
 let get_host_config = async (tab) => {
   let host = new URL(tab.url).host;
   let host_mode = `mode(${host})`;
@@ -57,7 +65,13 @@ let get_host_config = async (tab) => {
   };
 };
 
+/** @type {{ [tabid: number]: Promise<boolean> }} */
 let current_port_promises = {};
+/**
+ * Check if we can connect with the Windowed content script in a tab
+ * @param {number} tabId
+ * @returns {Promise<boolean>}
+ */
 let ping_content_script = async (tabId) => {
   try {
     if (current_port_promises[tabId] != null) {

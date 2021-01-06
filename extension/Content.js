@@ -123,13 +123,12 @@ let disable_selector = (element, key) => {
   delete element.dataset[key];
 };
 
-let clean_mode = (mode, disabled) => {
-  // Any other mode than the known ones are ignored
-  if (mode == "fullscreen" || mode == "windowed" || mode == "in-window") {
-    return mode;
-  }
-  return disabled === true ? "fullscreen" : "ask";
-};
+/**
+ * @returns {Promise<{
+ *  mode: import("./Background/BackgroundModule").WindowedMode,
+ *  pip: boolean,
+ * }>}
+ */
 let get_host_config_local = async () => {
   return await send_chrome_message({
     type: "get_windowed_config",
