@@ -1,6 +1,6 @@
 //
 //  SafariWebExtensionHandler.swift
-//  every website Extension
+//  WebExtension
 //
 //  Created by Michiel on 4/26/21.
 //

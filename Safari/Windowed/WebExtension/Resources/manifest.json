@@ -14,21 +14,30 @@
       "id": "{477dbe5e-1742-4641-a2c3-b6113bb5cf6e}"
     }
   },
+  "browser_action": {
+    "default_popup": "extension/Popup/Popup.html",
+    "default_icon": {
+      "32": "extension/Images/Icon_Windowed_Mono.png"
+    }
+  },
   "content_scripts": [
     {
       "run_at": "document_start",
       "matches": ["<all_urls>"],
       "match_about_blank": true,
-      "js": ["Vendor/browser-polyfill.min.js", "Content.js"],
+      "js": ["extension/Content.js"],
       "all_frames": true
     }
   ],
   "background": {
-    "scripts": [
-      "Vendor/browser-polyfill.min.js",
-      "Background/BackgroundEntry.js"
-    ],
+    "scripts": ["extension/Background/BackgroundEntry.js"],
     "persistent": false
   },
-  "web_accessible_resources": ["Images/*"]
+  "web_accessible_resources": ["extension/Images/*", "Images/*"],
+  "icons": {
+    "16": "extension/Icons/Icon_16.png",
+    "32": "extension/Icons/Icon_32.png",
+    "64": "extension/Icons/Icon_64.png",
+    "128": "extension/Icons/Icon_128.png"
+  }
 }

@@ -1,0 +1,522 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 50;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		CC1CD79A26365BBD003D6629 /* extension in Resources */ = {isa = PBXBuildFile; fileRef = CC1CD79926365BBD003D6629 /* extension */; };
+		CC1CD7BD263661BF003D6629 /* Icons in Resources */ = {isa = PBXBuildFile; fileRef = CC1CD7BC263661BF003D6629 /* Icons */; };
+		CC1CD7CF2636658A003D6629 /* Images in Resources */ = {isa = PBXBuildFile; fileRef = CC1CD7CE2636658A003D6629 /* Images */; };
+		CC83F8CB263617BF00052DF3 /* WindowedApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC83F8CA263617BF00052DF3 /* WindowedApp.swift */; };
+		CC83F8CD263617BF00052DF3 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC83F8CC263617BF00052DF3 /* ContentView.swift */; };
+		CC83F8CF263617C100052DF3 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = CC83F8CE263617C100052DF3 /* Assets.xcassets */; };
+		CC83F8D2263617C100052DF3 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = CC83F8D1263617C100052DF3 /* Preview Assets.xcassets */; };
+		CCA5618D2636280A005E183B /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CC83F8E12636190100052DF3 /* Cocoa.framework */; };
+		CCA561902636280A005E183B /* SafariWebExtensionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCA5618F2636280A005E183B /* SafariWebExtensionHandler.swift */; };
+		CCA561A62636280A005E183B /* WebExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = CCA5618C2636280A005E183B /* WebExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		CCA561C726362906005E183B /* manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = CCA561AC26362905005E183B /* manifest.json */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		CCA561A42636280A005E183B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = CC83F8BF263617BF00052DF3 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = CCA5618B2636280A005E183B;
+			remoteInfo = WebExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		CC83F8FF2636190100052DF3 /* Embed App Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				CCA561A62636280A005E183B /* WebExtension.appex in Embed App Extensions */,
+			);
+			name = "Embed App Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		CC1CD79926365BBD003D6629 /* extension */ = {isa = PBXFileReference; lastKnownFileType = folder; name = extension; path = ../../../../extension; sourceTree = "<group>"; };
+		CC1CD7BC263661BF003D6629 /* Icons */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Icons; path = ../../../../extension/Icons; sourceTree = "<group>"; };
+		CC1CD7CE2636658A003D6629 /* Images */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Images; path = ../../../../extension/Images; sourceTree = "<group>"; };
+		CC83F8C7263617BF00052DF3 /* Windowed.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Windowed.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		CC83F8CA263617BF00052DF3 /* WindowedApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowedApp.swift; sourceTree = "<group>"; };
+		CC83F8CC263617BF00052DF3 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		CC83F8CE263617C100052DF3 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		CC83F8D1263617C100052DF3 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
+		CC83F8D3263617C100052DF3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		CC83F8D4263617C100052DF3 /* Windowed.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Windowed.entitlements; sourceTree = "<group>"; };
+		CC83F8E12636190100052DF3 /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = System/Library/Frameworks/Cocoa.framework; sourceTree = SDKROOT; };
+		CCA5618C2636280A005E183B /* WebExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = WebExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		CCA5618F2636280A005E183B /* SafariWebExtensionHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SafariWebExtensionHandler.swift; sourceTree = "<group>"; };
+		CCA561A22636280A005E183B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		CCA561A32636280A005E183B /* WebExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = WebExtension.entitlements; sourceTree = "<group>"; };
+		CCA561AC26362905005E183B /* manifest.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = manifest.json; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		CC83F8C4263617BF00052DF3 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CCA561892636280A005E183B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CCA5618D2636280A005E183B /* Cocoa.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		CC83F8BE263617BF00052DF3 = {
+			isa = PBXGroup;
+			children = (
+				CC83F8C9263617BF00052DF3 /* Windowed */,
+				CCA5618E2636280A005E183B /* WebExtension */,
+				CC83F8E02636190100052DF3 /* Frameworks */,
+				CC83F8C8263617BF00052DF3 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		CC83F8C8263617BF00052DF3 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				CC83F8C7263617BF00052DF3 /* Windowed.app */,
+				CCA5618C2636280A005E183B /* WebExtension.appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		CC83F8C9263617BF00052DF3 /* Windowed */ = {
+			isa = PBXGroup;
+			children = (
+				CC83F8CA263617BF00052DF3 /* WindowedApp.swift */,
+				CC83F8CC263617BF00052DF3 /* ContentView.swift */,
+				CC83F8CE263617C100052DF3 /* Assets.xcassets */,
+				CC83F8D3263617C100052DF3 /* Info.plist */,
+				CC83F8D4263617C100052DF3 /* Windowed.entitlements */,
+				CC83F8D0263617C100052DF3 /* Preview Content */,
+			);
+			path = Windowed;
+			sourceTree = "<group>";
+		};
+		CC83F8D0263617C100052DF3 /* Preview Content */ = {
+			isa = PBXGroup;
+			children = (
+				CC83F8D1263617C100052DF3 /* Preview Assets.xcassets */,
+			);
+			path = "Preview Content";
+			sourceTree = "<group>";
+		};
+		CC83F8E02636190100052DF3 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				CC83F8E12636190100052DF3 /* Cocoa.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		CCA5618E2636280A005E183B /* WebExtension */ = {
+			isa = PBXGroup;
+			children = (
+				CCA5618F2636280A005E183B /* SafariWebExtensionHandler.swift */,
+				CCA561A22636280A005E183B /* Info.plist */,
+				CCA561A32636280A005E183B /* WebExtension.entitlements */,
+				CCA561912636280A005E183B /* Resources */,
+			);
+			path = WebExtension;
+			sourceTree = "<group>";
+		};
+		CCA561912636280A005E183B /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				CC1CD7CE2636658A003D6629 /* Images */,
+				CC1CD7BC263661BF003D6629 /* Icons */,
+				CC1CD79926365BBD003D6629 /* extension */,
+				CCA561AC26362905005E183B /* manifest.json */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		CC83F8C6263617BF00052DF3 /* Windowed */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CC83F8D7263617C100052DF3 /* Build configuration list for PBXNativeTarget "Windowed" */;
+			buildPhases = (
+				CC83F8C3263617BF00052DF3 /* Sources */,
+				CC83F8C4263617BF00052DF3 /* Frameworks */,
+				CC83F8C5263617BF00052DF3 /* Resources */,
+				CC83F8FF2636190100052DF3 /* Embed App Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				CCA561A52636280A005E183B /* PBXTargetDependency */,
+			);
+			name = Windowed;
+			productName = Windowed;
+			productReference = CC83F8C7263617BF00052DF3 /* Windowed.app */;
+			productType = "com.apple.product-type.application";
+		};
+		CCA5618B2636280A005E183B /* WebExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CCA561A92636280A005E183B /* Build configuration list for PBXNativeTarget "WebExtension" */;
+			buildPhases = (
+				CCA561882636280A005E183B /* Sources */,
+				CCA561892636280A005E183B /* Frameworks */,
+				CCA5618A2636280A005E183B /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = WebExtension;
+			productName = WebExtension;
+			productReference = CCA5618C2636280A005E183B /* WebExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		CC83F8BF263617BF00052DF3 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastSwiftUpdateCheck = 1240;
+				LastUpgradeCheck = 1240;
+				TargetAttributes = {
+					CC83F8C6263617BF00052DF3 = {
+						CreatedOnToolsVersion = 12.4;
+					};
+					CCA5618B2636280A005E183B = {
+						CreatedOnToolsVersion = 12.4;
+					};
+				};
+			};
+			buildConfigurationList = CC83F8C2263617BF00052DF3 /* Build configuration list for PBXProject "Windowed" */;
+			compatibilityVersion = "Xcode 9.3";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = CC83F8BE263617BF00052DF3;
+			productRefGroup = CC83F8C8263617BF00052DF3 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				CC83F8C6263617BF00052DF3 /* Windowed */,
+				CCA5618B2636280A005E183B /* WebExtension */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		CC83F8C5263617BF00052DF3 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CC83F8D2263617C100052DF3 /* Preview Assets.xcassets in Resources */,
+				CC83F8CF263617C100052DF3 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CCA5618A2636280A005E183B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CC1CD79A26365BBD003D6629 /* extension in Resources */,
+				CCA561C726362906005E183B /* manifest.json in Resources */,
+				CC1CD7CF2636658A003D6629 /* Images in Resources */,
+				CC1CD7BD263661BF003D6629 /* Icons in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		CC83F8C3263617BF00052DF3 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CC83F8CD263617BF00052DF3 /* ContentView.swift in Sources */,
+				CC83F8CB263617BF00052DF3 /* WindowedApp.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CCA561882636280A005E183B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CCA561902636280A005E183B /* SafariWebExtensionHandler.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		CCA561A52636280A005E183B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = CCA5618B2636280A005E183B /* WebExtension */;
+			targetProxy = CCA561A42636280A005E183B /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		CC83F8D5263617C100052DF3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 11.1;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		CC83F8D6263617C100052DF3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 11.1;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+			};
+			name = Release;
+		};
+		CC83F8D8263617C100052DF3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Windowed/Windowed.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_ASSET_PATHS = "\"Windowed/Preview Content\"";
+				DEVELOPMENT_TEAM = UAASHCR7SB;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				INFOPLIST_FILE = Windowed/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 11.0;
+				PRODUCT_BUNDLE_IDENTIFIER = eu.dral.Windowed;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		CC83F8D9263617C100052DF3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Windowed/Windowed.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_ASSET_PATHS = "\"Windowed/Preview Content\"";
+				DEVELOPMENT_TEAM = UAASHCR7SB;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				INFOPLIST_FILE = Windowed/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 11.0;
+				PRODUCT_BUNDLE_IDENTIFIER = eu.dral.Windowed;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		CCA561A72636280A005E183B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = WebExtension/WebExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = UAASHCR7SB;
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = WebExtension/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 10.14;
+				PRODUCT_BUNDLE_IDENTIFIER = eu.dral.Windowed.WebExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		CCA561A82636280A005E183B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = WebExtension/WebExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = UAASHCR7SB;
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = WebExtension/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 10.14;
+				PRODUCT_BUNDLE_IDENTIFIER = eu.dral.Windowed.WebExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		CC83F8C2263617BF00052DF3 /* Build configuration list for PBXProject "Windowed" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CC83F8D5263617C100052DF3 /* Debug */,
+				CC83F8D6263617C100052DF3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		CC83F8D7263617C100052DF3 /* Build configuration list for PBXNativeTarget "Windowed" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CC83F8D8263617C100052DF3 /* Debug */,
+				CC83F8D9263617C100052DF3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		CCA561A92636280A005E183B /* Build configuration list for PBXNativeTarget "WebExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CCA561A72636280A005E183B /* Debug */,
+				CCA561A82636280A005E183B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = CC83F8BF263617BF00052DF3 /* Project object */;
+}
