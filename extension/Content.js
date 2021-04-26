@@ -102,6 +102,7 @@ let external_function_parent = (function_id) => async (...args) => {
   return new Promise((resolve, reject) => {
     let listener = (event) => {
       // We only accept messages from ourselves
+      console.log("Event:", event);
       if (event.source != window.parent) return;
       if (event.data == null) return;
 
@@ -180,12 +181,14 @@ const code_to_insert_in_page = on_webpage`{
     let request_id = all_communication_id;
     all_communication_id = all_communication_id + 1;
 
+    console.log('#1');
     window.postMessage({
       type: 'CUSTOM_WINDOWED_FROM_PAGE',
       request_id: request_id,
       function_id: function_id,
       args: args,
     }, '*');
+    console.log('#2');
 
     return new Promise((resolve, reject) => {
       let listener = (event) => {
@@ -244,6 +247,7 @@ const code_to_insert_in_page = on_webpage`{
   }}
 
   let create_popup = ${async () => {
+    console.log("#2");
     clear_popup();
 
     let is_fullscreen = await external_function_parent("is_fullscreen")();
@@ -1101,6 +1105,7 @@ window.addEventListener("message", async (event) => {
   // We only accept messages from ourselves
   if (event.data == null) return;
   if (event.data.type === "CUSTOM_WINDOWED_FROM_PAGE") {
+    console.log("Hi");
     let fn = external_functions[event.data.function_id];
     try {
       let result = await fn(...event.data.args);
@@ -1115,6 +1120,7 @@ window.addEventListener("message", async (event) => {
         "*",
       );
     } catch (err) {
+      console.log("Error:", err);
       // @ts-ignore
       event.source.postMessage(
         {

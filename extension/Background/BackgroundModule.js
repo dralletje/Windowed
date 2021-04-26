@@ -2,7 +2,7 @@
 import { tint_image } from "./tint_image.js";
 import { browser } from "../Vendor/Browser.js";
 
-let BROWSERACTION_ICON = "/Images/Icon_Windowed_Mono@1x.png";
+let BROWSERACTION_ICON = "/Images/Icon_Windowed_Mono.png";
 
 let browser_info_promise = browser.runtime.getBrowserInfo
   ? browser.runtime.getBrowserInfo()

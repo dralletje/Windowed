@@ -17,13 +17,14 @@
   "browser_action": {
     "default_popup": "Popup/Popup.html",
     "default_icon": {
-      "32": "/Images/Icon_Windowed_Mono@1x.png"
+      "32": "/Images/Icon_Windowed_Mono.png"
     }
   },
   "content_scripts": [
     {
       "run_at": "document_start",
       "matches": ["<all_urls>"],
+      "match_about_blank": true,
       "js": ["Vendor/browser-polyfill.min.js", "Content.js"],
       "all_frames": true
     }
