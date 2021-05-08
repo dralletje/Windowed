@@ -8,7 +8,6 @@
 
 /* Begin PBXBuildFile section */
 		CC1CD79A26365BBD003D6629 /* extension in Resources */ = {isa = PBXBuildFile; fileRef = CC1CD79926365BBD003D6629 /* extension */; };
-		CC1CD7BD263661BF003D6629 /* Icons in Resources */ = {isa = PBXBuildFile; fileRef = CC1CD7BC263661BF003D6629 /* Icons */; };
 		CC1CD7CF2636658A003D6629 /* Images in Resources */ = {isa = PBXBuildFile; fileRef = CC1CD7CE2636658A003D6629 /* Images */; };
 		CC83F8CB263617BF00052DF3 /* WindowedApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC83F8CA263617BF00052DF3 /* WindowedApp.swift */; };
 		CC83F8CD263617BF00052DF3 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC83F8CC263617BF00052DF3 /* ContentView.swift */; };
@@ -46,7 +45,6 @@
 
 /* Begin PBXFileReference section */
 		CC1CD79926365BBD003D6629 /* extension */ = {isa = PBXFileReference; lastKnownFileType = folder; name = extension; path = ../../../../extension; sourceTree = "<group>"; };
-		CC1CD7BC263661BF003D6629 /* Icons */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Icons; path = ../../../../extension/Icons; sourceTree = "<group>"; };
 		CC1CD7CE2636658A003D6629 /* Images */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Images; path = ../../../../extension/Images; sourceTree = "<group>"; };
 		CC83F8C7263617BF00052DF3 /* Windowed.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Windowed.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CC83F8CA263617BF00052DF3 /* WindowedApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowedApp.swift; sourceTree = "<group>"; };
@@ -145,7 +143,6 @@
 			isa = PBXGroup;
 			children = (
 				CC1CD7CE2636658A003D6629 /* Images */,
-				CC1CD7BC263661BF003D6629 /* Icons */,
 				CC1CD79926365BBD003D6629 /* extension */,
 				CCA561AC26362905005E183B /* manifest.json */,
 			);
@@ -244,7 +241,6 @@
 				CC1CD79A26365BBD003D6629 /* extension in Resources */,
 				CCA561C726362906005E183B /* manifest.json in Resources */,
 				CC1CD7CF2636658A003D6629 /* Images in Resources */,
-				CC1CD7BD263661BF003D6629 /* Icons in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
