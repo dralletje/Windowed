@@ -1,6 +1,9 @@
 // Import is not yet allowed in firefox, so for now I put tint_image in manifest.json
 import { tint_image } from "./tint_image.js";
-import { browser } from "../Vendor/Browser.js";
+// import { browser as firefox_browser } from "../Vendor/Browser.js";
+
+// @ts-ignore
+let browser = chrome;
 
 let BROWSERACTION_ICON = "/Images/Icon_Windowed_Mono@1x.png";
 
@@ -101,7 +104,7 @@ let get_host_config = async (tab) => {
     [host_mode]: mode,
     [host]: disabled,
     [host_pip]: pip,
-  } = await browser.storage.sync.get([host_mode, host, host_pip]);
+  } = (await browser.storage.sync.get([host_mode, host, host_pip])) ?? {};
 
   return {
     mode: clean_mode(mode, disabled),
@@ -116,18 +119,22 @@ let get_host_config = async (tab) => {
  * @return {void}
  */
 let onMessage = (type, fn) => {
-  browser.runtime.onMessage.addListener((message, sender) => {
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message?.type === type) {
-      return fn(message, sender)
+      fn(message, sender)
         .then((result) => {
-          return { type: "resolve", value: result };
+          console.log("Gooooo");
+          sendResponse({ type: "resolve", value: result });
         })
         .catch((err) => {
-          return {
+          console.log("Noooooo");
+          sendResponse({
             type: "reject",
             value: { message: err.message, stack: err.stack },
-          };
+          });
         });
+      console.log(`Cooool ${type}`);
+      return true;
     }
   });
 };
@@ -241,6 +248,8 @@ let ping_content_script = async (tabId) => {
           port.disconnect();
         });
         port.onDisconnect.addListener((p) => {
+          // Just getting chrome.runtime.lastError so chrome understands I'm fine with errors
+          chrome.runtime.lastError;
           resolve(false);
         });
       });
@@ -249,6 +258,10 @@ let ping_content_script = async (tabId) => {
   } finally {
     delete current_port_promises[tabId];
   }
+};
+
+let window = {
+  matchMedia: (query) => true,
 };
 
 /**
@@ -295,11 +308,11 @@ let notify_tab_state = async (tabId, properties) => {
  * @param {{ icon: ImageData, title: string }} action
  */
 let apply_browser_action = async (tabId, action) => {
-  await browser.browserAction.setIcon({
+  await browser.action.setIcon({
     tabId: tabId,
     imageData: action.icon,
   });
-  await browser.browserAction.setTitle({
+  await browser.action.setTitle({
     tabId: tabId,
     title: action.title,
   });

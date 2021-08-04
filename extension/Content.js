@@ -4,7 +4,10 @@
 // more rather than less code. No modules or anything fance like that
 
 // @ts-ignore
-const browser = /** @type {import("webextension-polyfill-ts").Browser} */ (globalThis.browser);
+// const browser = /** @type {import("webextension-polyfill-ts").Browser} */ (
+//   globalThis.browser
+// );
+const browser = chrome;
 
 const fullscreen_id_namespace = `windowed_long_id_that_does_not_conflict`;
 
@@ -81,40 +84,42 @@ let on_webpage = (strings, ...values) => {
 };
 
 let all_communication_id = 0;
-let external_function_parent = (function_id) => async (...args) => {
-  let request_id = `FROM_CONTENT:${all_communication_id}`;
-  all_communication_id = all_communication_id + 1;
+let external_function_parent =
+  (function_id) =>
+  async (...args) => {
+    let request_id = `FROM_CONTENT:${all_communication_id}`;
+    all_communication_id = all_communication_id + 1;
 
-  if (window.parent === window) {
-    return;
-  }
+    if (window.parent === window) {
+      return;
+    }
 
-  window.parent.postMessage(
-    {
-      type: "CUSTOM_WINDOWED_FROM_PAGE",
-      request_id: request_id,
-      function_id: function_id,
-      args: args,
-    },
-    "*",
-  );
+    window.parent.postMessage(
+      {
+        type: "CUSTOM_WINDOWED_FROM_PAGE",
+        request_id: request_id,
+        function_id: function_id,
+        args: args,
+      },
+      "*",
+    );
 
-  return new Promise((resolve, reject) => {
-    let listener = (event) => {
-      // We only accept messages from ourselves
-      if (event.source != window.parent) return;
-      if (event.data == null) return;
+    return new Promise((resolve, reject) => {
+      let listener = (event) => {
+        // We only accept messages from ourselves
+        if (event.source != window.parent) return;
+        if (event.data == null) return;
 
-      if (event.data.type === "CUSTOM_WINDOWED_TO_PAGE") {
-        if (event.data.request_id === request_id) {
-          window.removeEventListener("message", listener);
-          resolve(event.data.result);
+        if (event.data.type === "CUSTOM_WINDOWED_TO_PAGE") {
+          if (event.data.request_id === request_id) {
+            window.removeEventListener("message", listener);
+            resolve(event.data.result);
+          }
         }
-      }
-    };
-    window.addEventListener("message", listener);
-  });
-};
+      };
+      window.addEventListener("message", listener);
+    });
+  };
 
 let enable_selector = (element, key) => {
   element.dataset[key] = true;
@@ -254,9 +259,9 @@ const code_to_insert_in_page = on_webpage`{
 
     // Find possible picture-in-picture video element
     let element = document.querySelector(`[data-${fullscreen_select}]`);
-    let video_element = /** @type {PictureInPictureVideoElement} */ (element.querySelector(
-      "video",
-    ));
+    let video_element = /** @type {PictureInPictureVideoElement} */ (
+      element.querySelector("video")
+    );
     video_element =
       video_element != null &&
       video_element.requestPictureInPicture != null &&
@@ -442,37 +447,38 @@ const code_to_insert_in_page = on_webpage`{
       });
 
       // For people who like keyboard shortcuts
-      popup_element.addEventListener("keydown", (
-        /** @type {KeyboardEvent} */ event,
-      ) => {
-        if (event.key === "w") {
-          event.stopPropagation();
-          resolve("windowed");
-        }
-        if (event.key === "i") {
-          event.stopPropagation();
-          resolve("in-window");
-        }
-        if (event.key === "f") {
-          event.stopPropagation();
+      popup_element.addEventListener(
+        "keydown",
+        (/** @type {KeyboardEvent} */ event) => {
+          if (event.key === "w") {
+            event.stopPropagation();
+            resolve("windowed");
+          }
+          if (event.key === "i") {
+            event.stopPropagation();
+            resolve("in-window");
+          }
+          if (event.key === "f") {
+            event.stopPropagation();
 
-          // I need this check here, because I can't call the original fullscreen from a
-          // 'async' function (or anywhere async (eg. after `resolve()` is called))
-          let element = document.querySelector(`[data-${fullscreen_select}]`);
-          disable_selector(element, fullscreen_select);
-          element.requestFullscreen();
+            // I need this check here, because I can't call the original fullscreen from a
+            // 'async' function (or anywhere async (eg. after `resolve()` is called))
+            let element = document.querySelector(`[data-${fullscreen_select}]`);
+            disable_selector(element, fullscreen_select);
+            element.requestFullscreen();
 
-          resolve("fullscreen");
-        }
-        if (event.key === "p") {
-          event.stopPropagation();
-          resolve("picture-in-picture");
-        }
-        if (event.key === "Escape") {
-          event.stopPropagation();
-          resolve("nothing");
-        }
-      });
+            resolve("fullscreen");
+          }
+          if (event.key === "p") {
+            event.stopPropagation();
+            resolve("picture-in-picture");
+          }
+          if (event.key === "Escape") {
+            event.stopPropagation();
+            resolve("nothing");
+          }
+        },
+      );
 
       for (let button of shadowRoot.querySelectorAll(`[data-target]`)) {
         button.addEventListener("click", (e) => {
@@ -663,10 +669,11 @@ const code_to_insert_in_page = on_webpage`{
 }
 `;
 
-let elt = document.createElement("script");
-elt.innerHTML = code_to_insert_in_page;
-document.documentElement.appendChild(elt);
-document.documentElement.removeChild(elt);
+// RIIIIIIPPPPP
+// let elt = document.createElement("script");
+// elt.innerHTML = code_to_insert_in_page;
+// document.documentElement.appendChild(elt);
+// document.documentElement.removeChild(elt);
 
 const send_event = (element, type) => {
   const event = new Event(type, {
@@ -855,7 +862,11 @@ const parent_elements = function* (element) {
  * @param {{ type: string, [key: string]: any }} message
  */
 let send_chrome_message = async (message) => {
-  let { type, value } = await browser.runtime.sendMessage(message);
+  let { type, value } = await new Promise((resolve) => {
+    browser.runtime.sendMessage(message, (response) => {
+      resolve(response);
+    });
+  });
   if (type === "resolve") {
     return value;
   } else {

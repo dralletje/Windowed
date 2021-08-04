@@ -64,26 +64,18 @@ export let tint_image = async (url, color) => {
 let _color_icon = async (url, _color) => {
   let { color, alpha } = find_and_replace_alpha(_color);
 
-  let canvas = document.createElement("canvas");
-  canvas.width = 128;
-  canvas.height = 128;
+  let canvas = new OffscreenCanvas(128, 128);
 
   // Initaliase a 2-dimensional drawing context
   let ctx = canvas.getContext("2d");
   let width = ctx.canvas.width;
   let height = ctx.canvas.height;
 
-  let fg = new Image();
-  fg.src = url;
-  await new Promise((resolve, reject) => {
-    fg.onload = () => resolve();
-    fg.onerror = () => reject();
-  });
+  const blob = await fetch(url).then((r) => r.blob());
+  const fg = await createImageBitmap(blob);
 
   // create offscreen buffer,
-  let buffer = document.createElement("canvas");
-  buffer.width = fg.width;
-  buffer.height = fg.height;
+  let buffer = new OffscreenCanvas(fg.width, fg.height);
 
   let bx = buffer.getContext("2d");
   // fill offscreen buffer with the tint color

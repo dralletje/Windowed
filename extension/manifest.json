@@ -7,14 +7,15 @@
     "url": "https://dral.eu/"
   },
   "version": "29",
-  "manifest_version": 2,
-  "permissions": ["storage", "tabs", "<all_urls>"],
+  "manifest_version": 3,
+  "permissions": ["storage", "tabs"],
+  "host_permissions": ["*://*/*"],
   "applications": {
     "gecko": {
       "id": "{477dbe5e-1742-4641-a2c3-b6113bb5cf6e}"
     }
   },
-  "browser_action": {
+  "action": {
     "default_popup": "Popup/Popup.html",
     "default_icon": {
       "32": "/Images/Icon_Windowed_Mono@1x.png"
@@ -29,13 +30,19 @@
     }
   ],
   "background": {
-    "scripts": [
-      "Vendor/browser-polyfill.min.js",
-      "Background/BackgroundEntry.js"
-    ],
-    "persistent": false
+    "service_worker": "Background/BackgroundModule.js",
+    "type": "module"
   },
-  "web_accessible_resources": ["Images/*"],
+  "web_accessible_resources": [
+    {
+      "resources": ["Images/*"],
+      "matches": ["<all_urls>"]
+    },
+    {
+      "resources": ["Vendor/browser-polyfill.min.js", "Vendor/Browser.js"],
+      "matches": ["<all_urls>"]
+    }
+  ],
   "icons": {
     "16": "Icons/Icon_16.png",
     "32": "Icons/Icon_32.png",
