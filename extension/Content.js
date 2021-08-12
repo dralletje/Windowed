@@ -436,9 +436,46 @@ const code_to_insert_in_page = on_webpage`{
     document.body.appendChild(popup_div);
     last_popup = popup_div;
 
+    // Hulu focusses the exit-fullscreen button directly after requesting fullscreen.
+    // This immediately hides the Windowed popup. Now I force re-focus the popup for the first 500 ms.
+    let FOCUSOUT_DELAY_TIME = 500; // I feel like half a second should be fine for this.
+    let focusout_delay_time = Date.now() + FOCUSOUT_DELAY_TIME;
+
+    let focusout_did_happen = false;
+    let focusout_is_no_longer_relevant = false;
+    let get_rid_of_document_click_event = () => {};
+
     /** @type {"windowed" | "in-window" | "fullscreen" | "picture-in-picture" | "nothing"} */
     let result = await new Promise((resolve) => {
       popup_element.addEventListener("focusout", (event) => {
+        // <HULU CRAP>
+        if (focusout_is_no_longer_relevant) return;
+        if (focusout_delay_time > Date.now()) {
+          if (focusout_did_happen) {
+            focusout_is_no_longer_relevant = true;
+            // Hulu also just keeps tugging for focus, so when this happens I fall back to clicking outside the popup.
+            let fn = (/** @type {MouseEvent} */ event) => {
+              // Detect click outside of element
+              let target = /** @type {any} */ (event.target);
+              if (popup_element.contains(target) || popup_div.contains(target))
+                return;
+
+              event.preventDefault();
+              event.stopImmediatePropagation();
+              resolve("nothing");
+            };
+            document.addEventListener("click", fn, { capture: true });
+            get_rid_of_document_click_event = () => {
+              document.removeEventListener("click", fn, { capture: true });
+            };
+            return;
+          }
+          focusout_did_happen = true;
+          // </HULU CRAP>
+
+          popup_element.focus();
+          return;
+        }
         // @ts-ignore
         if (!event.currentTarget.contains(event.relatedTarget)) {
           resolve("nothing");
@@ -495,6 +532,7 @@ const code_to_insert_in_page = on_webpage`{
       }
     });
 
+    get_rid_of_document_click_event();
     clear_popup();
 
     if (result === "fullscreen") {
