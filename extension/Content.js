@@ -328,9 +328,7 @@ const code_to_insert_in_page = on_webpage`{
           ${
             video_element
               ? Button({
-                  icon: browser.extension.getURL(
-                    "Images/Icon_PiP@scalable.svg",
-                  ),
+                  icon: browser.runtime.getURL("Images/Icon_PiP@scalable.svg"),
                   text: "PiP",
                   title: "Picture-in-picture (p)",
                   target: "picture-in-picture",
@@ -338,13 +336,13 @@ const code_to_insert_in_page = on_webpage`{
               : ""
           }
           ${Button({
-            icon: browser.extension.getURL("Images/Icon_Windowed@scalable.svg"),
+            icon: browser.runtime.getURL("Images/Icon_Windowed@scalable.svg"),
             text: "Windowed",
             title: "Windowed (w)",
             target: "windowed",
           })}
           ${Button({
-            icon: browser.extension.getURL(
+            icon: browser.runtime.getURL(
               "Images/Icon_InWindow_Mono@scalable.svg",
             ),
             text: "In-window",
@@ -352,7 +350,7 @@ const code_to_insert_in_page = on_webpage`{
             target: "in-window",
           })}
           ${Button({
-            icon: browser.extension.getURL(
+            icon: browser.runtime.getURL(
               "Images/Icon_EnterFullscreen@scalable.svg",
             ),
             text: "Fullscreen",
@@ -388,7 +386,7 @@ const code_to_insert_in_page = on_webpage`{
             ${
               video_element
                 ? Button({
-                    icon: browser.extension.getURL(
+                    icon: browser.runtime.getURL(
                       "Images/Icon_PiP@scalable.svg",
                     ),
                     text: "PiP",
@@ -398,15 +396,13 @@ const code_to_insert_in_page = on_webpage`{
                 : ""
             }
             ${Button({
-              icon: browser.extension.getURL(
-                "Images/Icon_Windowed@scalable.svg",
-              ),
+              icon: browser.runtime.getURL("Images/Icon_Windowed@scalable.svg"),
               text: "Windowed",
               title: "Windowed (w)",
               target: "windowed",
             })}
             ${Button({
-              icon: browser.extension.getURL(
+              icon: browser.runtime.getURL(
                 "Images/Icon_InWindow_Mono@scalable.svg",
               ),
               text: "In-window",
@@ -414,7 +410,7 @@ const code_to_insert_in_page = on_webpage`{
               target: "in-window",
             })}
             ${Button({
-              icon: browser.extension.getURL(
+              icon: browser.runtime.getURL(
                 "Images/Icon_EnterFullscreen@scalable.svg",
               ),
               text: "Fullscreen",
