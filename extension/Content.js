@@ -665,13 +665,37 @@ const code_to_insert_in_page = on_webpage`{
       };
     }
   });
-}
-`;
+}`;
+
+//// I used to insert the code directly as a <script>...</script> tag,
+//// but that doesn't work nicely with some sites CSP.
+//// Now I create this separate file with the contents of the script,
+//// which is awkward if they aren't in sync... but I need to hack hack hack.
+//// This also loads the script asynchronously.. but i think these scripts still execute in order.
+//// I still need to do the `on_webpage` call, so the message listeners are set up.
+// let elt = document.createElement("script");
+// elt.innerHTML = code_to_insert_in_page;
+// document.documentElement.appendChild(elt);
+// document.documentElement.removeChild(elt);
 
 let elt = document.createElement("script");
-elt.innerHTML = code_to_insert_in_page;
+elt.src = browser.runtime.getURL("script_to_insert_directly_into_page.js");
 document.documentElement.appendChild(elt);
 document.documentElement.removeChild(elt);
+
+//// This is just for myself as debugging, but it will tell me if the script that is inserted,
+//// is actually the same as the script I am expecting it to be. (because debugging could get very frustrating)
+let async = async (async) => async();
+async(async () => {
+  let response = await fetch(elt.src);
+  let result = await response.text();
+  if (result !== code_to_insert_in_page) {
+    // prettier-ignore
+    console.error("[WINDOWED] HEY MICHIEL! The script I am inserting is not the same as the script I expect it to be!");
+    console.log("[WINDOWED] Code should actually be:");
+    console.log(code_to_insert_in_page);
+  }
+});
 
 const send_event = (element, type) => {
   const event = new Event(type, {

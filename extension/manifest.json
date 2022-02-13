@@ -7,6 +7,7 @@
     "url": "https://dral.eu/"
   },
   "version": "29",
+  "version": "31",
   "manifest_version": 2,
   "permissions": ["storage", "tabs", "<all_urls>"],
   "applications": {
@@ -35,7 +36,10 @@
     ],
     "persistent": false
   },
-  "web_accessible_resources": ["Images/*"],
+  "web_accessible_resources": [
+    "Images/*",
+    "script_to_insert_directly_into_page.js"
+  ],
   "icons": {
     "16": "Icons/Icon_16.png",
     "32": "Icons/Icon_32.png",
