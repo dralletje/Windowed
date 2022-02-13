@@ -1,7 +1,7 @@
 # ![Windowed Logo](extension/Icons/Icon_32.png) Windowed
 
 [Install in Chrome Webstore](https://chrome.google.com/webstore/detail/windowed-floating-youtube/gibipneadnbflmkebnmcbgjdkngkbklb)  
-[Install in Firefox](https://addons.mozilla.org/en-US/firefox/addon/windowed/)  
+[Install in Firefox](https://addons.mozilla.org/firefox/addon/windowed/)  
 [Install in Edge](https://microsoftedge.microsoft.com/addons/detail/windowed-floating-youtu/kfaokmgjemianbbeadblgppcedfihdnb)
 
 A small extension for chrome and firefox I made because I don't really like normal fullscreen. It injects itself into every page, and replaces `HTMLElement.prototype.requestFullscreen` (or the browser specific version) with a popup to get into Windowed, In-window or picture in picture mode. Important for me is that the video/page does not reload when switching to Windowed.
