@@ -786,6 +786,7 @@ let popup_css = `
     padding-top: 0.25em;
     padding-bottom: 0.25em;
     background-color: white;
+    color: black; /* Force black for if the page has color: white */
 
     display: flex;
     flex-direction: row;
