@@ -286,7 +286,7 @@ let icon_theme_color = async (tab) => {
  */
 let notify_tab_state = async (tabId, properties) => {
   let port = browser.tabs.connect(tabId);
-  // port.postMessage(JSON.stringify({ method: 'notify', data: properties }))
+  port.disconnect();
 };
 
 /**
