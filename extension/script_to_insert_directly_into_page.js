@@ -93,7 +93,7 @@
   let make_tab_exit_fullscreen = external_function(4);
 
   let exitFullscreen = async function(original) {
-    let windowed_fullscreen = document.querySelector('[data-windowed_long_id_that_does_not_conflict_active]');
+    let windowed_fullscreen = document.querySelector('[data-windowed_long_id_that_does_not_conflict_active], [data-windowed_long_id_that_does_not_conflict_shadowdom]');
 
     if (windowed_fullscreen) {
       // If the fullscreen element is a frame, tell it to exit fullscreen too
@@ -120,6 +120,12 @@
   const requestFullscreen_windowed = async function(original, ...args) {
     const element = this;
     element.dataset['windowed_long_id_that_does_not_conflict_select'] = true;
+
+    let shadowroot = element.getRootNode()
+    while (shadowroot != null && shadowroot.host != null) {
+        shadowroot.host.dataset['windowed_long_id_that_does_not_conflict_shadowdom'] = true;
+        shadowroot = shadowroot.host.getRootNode()
+    }
 
     // Tell extension code (outside of this block) to go into fullscreen
     // window.postMessage({ type: force ? "enter_fullscreen" : "show_fullscreen_popup" }, "*");

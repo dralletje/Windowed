@@ -15,6 +15,7 @@ const fullscreen_active = `${fullscreen_id_namespace}_active`;
 const fullscreen_element_cloned = `${fullscreen_id_namespace}_ugly_hacky_cloned`;
 const fullscreen_parent = `${fullscreen_id_namespace}_parent`;
 const body_class = `${fullscreen_id_namespace}_body`;
+const shadowdom_trail = `${fullscreen_id_namespace}_shadowdom`;
 
 const max_z_index = "2147483647";
 
@@ -139,6 +140,22 @@ let get_host_config_local = async () => {
   });
 };
 
+/**
+ * @param {DocumentOrShadowRoot} root
+ */
+let get_fullscreen_select_element = (root = document) => {
+  let found_in_lightdom = root.querySelector(`[data-${fullscreen_select}]`);
+  if (found_in_lightdom) return found_in_lightdom;
+
+  // If not found in the lightdom, we follow the trail down the shadows
+  let path_with_breadcrumb = root.querySelector(`[data-${shadowdom_trail}]`);
+  if (path_with_breadcrumb?.shadowRoot != null) {
+    return get_fullscreen_select_element(path_with_breadcrumb.shadowRoot);
+  } else {
+    throw new Error("Could not find the element that wants to be fullscreened");
+  }
+};
+
 let Button = ({ icon, title, text, target }) => `
   <button data-target="${target}" title="${title}">
     <img
@@ -256,8 +273,9 @@ const code_to_insert_in_page = on_webpage`{
       return;
     }
 
+    let element = get_fullscreen_select_element();
+
     // Find possible picture-in-picture video element
-    let element = document.querySelector(`[data-${fullscreen_select}]`);
     let video_element = /** @type {PictureInPictureVideoElement} */ (
       element.querySelector("video")
     );
@@ -281,7 +299,7 @@ const code_to_insert_in_page = on_webpage`{
 
     if (mode === "fullscreen" || mode === "windowed" || mode === "in-window") {
       if (mode === "fullscreen") {
-        let element = document.querySelector(`[data-${fullscreen_select}]`);
+        let element = get_fullscreen_select_element();
         disable_selector(element, fullscreen_select);
         element.requestFullscreen();
         return "FULLSCREEN";
@@ -458,7 +476,7 @@ const code_to_insert_in_page = on_webpage`{
 
             // I need this check here, because I can't call the original fullscreen from a
             // 'async' function (or anywhere async (eg. after `resolve()` is called))
-            let element = document.querySelector(`[data-${fullscreen_select}]`);
+            let element = get_fullscreen_select_element();
             disable_selector(element, fullscreen_select);
             element.requestFullscreen();
 
@@ -482,7 +500,7 @@ const code_to_insert_in_page = on_webpage`{
           if (target_keyword === "fullscreen") {
             // I need this check here, because I can't call the original fullscreen from a
             // 'async' function (or anywhere async (eg. after `resolve()` is called))
-            let element = document.querySelector(`[data-${fullscreen_select}]`);
+            let element = get_fullscreen_select_element();
             disable_selector(element, fullscreen_select);
             element.requestFullscreen();
           }
@@ -527,7 +545,7 @@ const code_to_insert_in_page = on_webpage`{
   }}
 
   let exitFullscreen = async function(original) {
-    let windowed_fullscreen = document.querySelector('[data-${fullscreen_active}]');
+    let windowed_fullscreen = document.querySelector('[data-${fullscreen_active}], [data-${shadowdom_trail}]');
 
     if (windowed_fullscreen) {
       // If the fullscreen element is a frame, tell it to exit fullscreen too
@@ -554,6 +572,12 @@ const code_to_insert_in_page = on_webpage`{
   const requestFullscreen_windowed = async function(original, ...args) {
     const element = this;
     element.dataset['${fullscreen_select}'] = true;
+
+    let shadowroot = element.getRootNode()
+    while (shadowroot != null && shadowroot.host != null) {
+        shadowroot.host.dataset['${shadowdom_trail}'] = true;
+        shadowroot = shadowroot.host.getRootNode()
+    }
 
     // Tell extension code (outside of this block) to go into fullscreen
     // window.postMessage({ type: force ? "enter_fullscreen" : "show_fullscreen_popup" }, "*");
@@ -817,36 +841,23 @@ let popup_css = `
   }
 `;
 
-let has_style_created = false;
-let create_style_rule = () => {
-  has_style_created = true;
-
+/**
+ * @param {DocumentOrShadowRoot} root
+ */
+let create_style_rule = (root = document) => {
   let css = `
-    [data-${body_class}] [data-${fullscreen_active}] {
-      position: fixed !important;
-      top: 0 !important;
-      bottom: 0 !important;
-      right: 0 !important;
-      left: 0 !important;
-      width: 100% !important;
-      height: 100% !important;
-      max-width: initial !important;
-      max-height: initial !important;
-      z-index: ${max_z_index} !important;
-    }
-
-    [data-${body_class}] [data-${fullscreen_parent}] {
+    [data-${fullscreen_parent}] {
       /* This thing is css black magic */
       all: initial !important;
       z-index: ${max_z_index} !important;
 
       /* Debugging */
-      background-color: rgba(0,0,0,.1) !important;
+      /* background-color: rgba(0,0,0,.1) !important; */
     }
 
     /* Not sure if this is necessary, but putting it here just in case */
-    [data-${body_class}] [data-${fullscreen_parent}]::before,
-    [data-${body_class}] [data-${fullscreen_parent}]::after {
+    [data-${fullscreen_parent}]::before,
+    [data-${fullscreen_parent}]::after {
       display: none;
     }
 
@@ -859,21 +870,52 @@ let create_style_rule = () => {
     }
 
     /* I know I want it to be generic, but still this is a youtube specific fix */
-    [data-${body_class}] #player-theater-container {
+    #player-theater-container {
       min-height: 0 !important;
+    }
+
+    [data-${fullscreen_active}],
+    [data-${shadowdom_trail}] {
+      position: fixed !important;
+      top: 0 !important;
+      bottom: 0 !important;
+      right: 0 !important;
+      left: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+      max-width: initial !important;
+      max-height: initial !important;
+      z-index: ${max_z_index} !important;
     }
   `;
 
   let styleEl = document.createElement("style");
-  document.head.appendChild(styleEl);
+  if (root.host) {
+    root.appendChild(styleEl);
+  } else {
+    root.head.appendChild(styleEl);
+  }
   styleEl.appendChild(document.createTextNode(css));
+
+  let shadowroot_maybe = root.querySelector(`[data-${shadowdom_trail}`);
+  if (shadowroot_maybe != null) {
+    console.log(`element:`, shadowroot_maybe);
+    create_style_rule(shadowroot_maybe.shadowRoot);
+  }
 };
 
 const parent_elements = function* (element) {
-  let el = element.parentElement;
+  let el = element;
   while (el) {
+    if (el.parentElement) {
+      el = el.parentElement;
+    } else if (el.getRootNode()?.host) {
+      el = el.getRootNode().host;
+    } else {
+      break;
+    }
+
     yield el;
-    el = el.parentElement;
   }
 };
 
@@ -953,8 +995,9 @@ let createElementFromHTML = (htmlString) => {
 
 let go_in_window = async () => {
   create_style_rule();
+
   clear_listeners();
-  let element = document.querySelector(`[data-${fullscreen_select}]`);
+  let element = get_fullscreen_select_element();
 
   let unlisten_to_escape = onEscapePress(() => {
     exit_fullscreen_on_page();
@@ -990,7 +1033,7 @@ let go_in_window = async () => {
 
 let go_into_fullscreen = async () => {
   create_style_rule();
-  let element = document.querySelector(`[data-${fullscreen_select}]`);
+  let element = get_fullscreen_select_element();
   let cloned = element.cloneNode(true);
 
   clear_listeners();
@@ -1083,22 +1126,19 @@ let go_out_of_fullscreen = async () => {
   // Remove no scroll from body (and remove all styles)
   disable_selector(document.body, body_class);
 
-  // Remove fullscreen class... from everything
-  for (let element of document.querySelectorAll(
-    `[data-${fullscreen_parent}]`,
-  )) {
-    disable_selector(element, fullscreen_parent);
-  }
-
   clear_listeners();
 
   send_fullscreen_events();
 
-  const fullscreen_element = document.querySelector(
-    `[data-${fullscreen_select}]`,
-  );
+  const fullscreen_element = get_fullscreen_select_element();
   disable_selector(fullscreen_element, fullscreen_select);
   disable_selector(fullscreen_element, fullscreen_active);
+
+  // Remove fullscreen class... from everything
+  for (let parent of parent_elements(fullscreen_element)) {
+    disable_selector(parent, fullscreen_parent);
+    disable_selector(parent, shadowdom_trail);
+  }
 
   // If we are a frame, tell the parent frame to exit fullscreen
   // If we aren't (we are a popup), tell the background page to make me tab again
