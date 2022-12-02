@@ -58,6 +58,11 @@ let get_host_config = async (tab) => {
     [host]: disabled,
     [host_pip]: pip,
   } = await browser.storage.sync.get([host_mode, host, host_pip]);
+  mode ??= "in-window";
+  if (mode == "ask") {
+    mode = "in-window";
+  }
+  disabled ??= false;
 
   return {
     mode: clean_mode(mode, disabled),
