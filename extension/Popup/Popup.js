@@ -94,6 +94,24 @@ let ping_content_script = async (tabId) => {
   }
 };
 
+const hideOrDisplayHint = (value) => {
+  let overrideHint = document.getElementById('overrideHint');
+  if (value === 'ask') {
+    overrideHint.classList.add('hidden');
+  } else {
+    overrideHint.classList.remove('hidden');
+  }
+}
+
+const changeKeyForAppleUsers = () => {
+  let isApple = /Mac|iPad|iPhone|iPod/.test(navigator.userAgent);
+
+  if (isApple) {
+    document.getElementById('isNotApple').classList.add('hidden');
+  } else {
+    document.getElementById('isApple').classList.add('hidden');
+  }
+};
 let initialize_page = async () => {
   let tabs = await browser.tabs.query({ active: true, currentWindow: true });
   let tab = tabs[0];
@@ -150,6 +168,7 @@ let initialize_page = async () => {
   let picture_in_picture_input = $form.elements.picture_in_picture;
 
   $form.addEventListener("input", async (e) => {
+    hideOrDisplayHint(behaviour_input.value);
     await browser.storage.sync.set({
       [host_mode]: behaviour_input.value,
       [host_pip]: picture_in_picture_input.checked,
@@ -163,6 +182,8 @@ let initialize_page = async () => {
   let config = await get_host_config(tab);
   behaviour_input.value = config.mode;
   picture_in_picture_input.checked = config.pip;
+  hideOrDisplayHint(behaviour_input.value);
+  changeKeyForAppleUsers();
 };
 
 run(initialize_page);
