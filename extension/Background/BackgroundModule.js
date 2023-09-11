@@ -102,7 +102,11 @@ let get_host_config = async (tab) => {
     [host]: disabled,
     [host_pip]: pip,
   } = await browser.storage.sync.get([host_mode, host, host_pip]);
-
+  mode ??= "fullscreen";
+  if (mode == "ask") {
+    mode = "fullscreen";
+  }
+  disabled ??= false;
   return {
     mode: clean_mode(mode, disabled),
     pip: pip === true,
@@ -355,14 +359,8 @@ let update_button_on_tab = async (tab) => {
   // and show a specific icon and title for each of those.
   let host = new URL(tab.url).host;
   let config = await get_host_config(tab);
-  if (config.mode === "fullscreen" && config.pip === false) {
-    // ONLY FULLSCREEN - Dimmed icon because it is basically disabled
-    await apply_browser_action(tab.id, {
-      icon: await tint_image(BROWSERACTION_ICON, "rgba(133, 133, 133, 0.5)"),
-      title: `Windowed is disabled on ${host}, click to re-activate`,
-    });
-    await notify_tab_state(tab.id, { disabled: true });
-  } else if (config.mode === "ask" && config.pip === false) {
+
+  if (config.mode === "ask" && config.pip === false) {
     // ONLY ASK - Normal white icon because this is "normal"
     await apply_browser_action(tab.id, {
       icon: await tint_image(BROWSERACTION_ICON, await icon_theme_color(tab)),

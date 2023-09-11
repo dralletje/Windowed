@@ -280,6 +280,8 @@ const code_to_insert_in_page = on_webpage`{
     }
 
     let modeIsPreselected = mode === "fullscreen" || mode === "windowed" || mode === "in-window";
+
+  console.log(controlIsPressed, modeIsPreselected)
     if (modeIsPreselected && controlIsPressed === false) {
       if (mode === "fullscreen") {
         let element = document.querySelector(`[data-${fullscreen_select}]`);
@@ -1255,7 +1257,7 @@ let check_disabled_state = async () => {
     window.postMessage(
       {
         type: "WINDOWED-notify",
-        disabled: mode === "fullscreen" && pip === false,
+        disabled: false,
       },
       "*",
     );
