@@ -22,6 +22,8 @@ Even though I want to create a very minimalist extension, I still provide some c
   This only shows up if a video element is found. Will put the video into native Picture-in-Picture mode, with only browser controls. This is amazing in most cases, butttttt here is one big disadvantage, the only reason I'm still working on this extension even, is that it **only works on videos**, and only **without any website specific controls**. For youtube, that doesn't really stack up against the floating-on-top feature for me. Still, there are many websites that do put something else (not a video) in fullscreen, which picture-in-picture does not support.  
   Either picture-in-picture needs to work for arbitrary elements, which would be really awesome, or chrome extensions should be able to make floating-on-top windows (they used to). Until then, we are stuck with two modes for just slightly different situations
 
+Hint: Hold <kbd>Ctrl</kbd> (or <kbd>⌘</kbd>) to ask anyway even if specifc mode is preselected. 
+
 ### Why so much code
 
 There are actually a lot of things that the websites need when I'm fullscreen-ing them.

@@ -279,7 +279,10 @@ const code_to_insert_in_page = on_webpage`{
       return "PICTURE-IN-PICTURE";
     }
 
-    if (mode === "fullscreen" || mode === "windowed" || mode === "in-window") {
+    let modeIsPreselected = mode === "fullscreen" || mode === "windowed" || mode === "in-window";
+
+  console.log(controlIsPressed, modeIsPreselected)
+    if (modeIsPreselected && controlIsPressed === false) {
       if (mode === "fullscreen") {
         let element = document.querySelector(`[data-${fullscreen_select}]`);
         disable_selector(element, fullscreen_select);
@@ -1254,7 +1257,7 @@ let check_disabled_state = async () => {
     window.postMessage(
       {
         type: "WINDOWED-notify",
-        disabled: mode === "fullscreen" && pip === false,
+        disabled: false,
       },
       "*",
     );
@@ -1269,4 +1272,18 @@ check_disabled_state();
 browser.runtime.onConnect.addListener(async (port) => {
   port.postMessage({ type: "I_exists_ping" });
   check_disabled_state();
+});
+
+let controlIsPressed = false;
+
+window.addEventListener('keydown', function (event) {
+  if (event.key === 'Control' || event.key === 'Meta') {
+    controlIsPressed = true;
+  }
+});
+
+window.addEventListener('keyup', function (event) {
+  if (event.key === 'Control' || event.key === 'Meta') {
+    controlIsPressed = false;
+  }
 });

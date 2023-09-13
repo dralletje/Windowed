@@ -151,6 +151,9 @@
         width: 1.2em;
         margin-right: 1em;
       }
+      .hidden {
+        display: none;
+      }
     </style>
   </head>
   <body>
@@ -199,6 +202,7 @@
             <img src="../Images/Icon_EnterFullscreen@scalable.svg" />
             <span>Fullscreen</span>
           </label>
+          <p id="overrideHint" class="hidden">Hold <b id="isNotApple">Ctrl</b> <b id="isApple">⌘</b> to ask anyway</p>
           <hide-if-no-picture-in-picture>
             <div style="height: 8px"></div>
             <label
