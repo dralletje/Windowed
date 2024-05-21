@@ -21,7 +21,7 @@
   "devDependencies": {
     "node-fetch": "^2.6.0",
     "puppeteer": "^1.18.1",
-    "web-ext": "^5.4.1",
+    "web-ext": "^7.11.0",
     "webextension-polyfill-ts": "^0.22.0"
   },
   "prettier": {

@@ -1,6 +1,8 @@
 // Import is not yet allowed in firefox, so for now I put tint_image in manifest.json
 import { tint_image } from "./tint_image.js";
-import { browser } from "../Vendor/Browser.js";
+// import { browser } from "../Vendor/Browser.js";
+
+let browser = chrome;
 
 let BROWSERACTION_ICON = "/Images/Icon_Windowed_Mono@1x.png";
 
@@ -101,7 +103,7 @@ let get_host_config = async (tab) => {
     [host_mode]: mode,
     [host]: disabled,
     [host_pip]: pip,
-  } = await browser.storage.sync.get([host_mode, host, host_pip]);
+  } = (await browser.storage.sync.get([host_mode, host, host_pip])) ?? {};
 
   return {
     mode: clean_mode(mode, disabled),
@@ -116,9 +118,9 @@ let get_host_config = async (tab) => {
  * @return {void}
  */
 let onMessage = (type, fn) => {
-  browser.runtime.onMessage.addListener((message, sender) => {
+  browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message?.type === type) {
-      return fn(message, sender)
+      fn(message, sender)
         .then((result) => {
           return { type: "resolve", value: result };
         })
@@ -127,7 +129,9 @@ let onMessage = (type, fn) => {
             type: "reject",
             value: { message: err.message, stack: err.stack },
           };
-        });
+        })
+        .then((x) => sendResponse(x));
+      return true;
     }
   });
 };
@@ -241,6 +245,8 @@ let ping_content_script = async (tabId) => {
           port.disconnect();
         });
         port.onDisconnect.addListener((p) => {
+          /// Just need to check for errors so chrome doesn't show a warning
+          browser.runtime.lastError;
           resolve(false);
         });
       });
@@ -249,6 +255,49 @@ let ping_content_script = async (tabId) => {
   } finally {
     delete current_port_promises[tabId];
   }
+};
+
+let creating; // A global promise to avoid concurrency issues
+async function setupOffscreenDocument(path) {
+  // Check all windows controlled by the service worker to see if one
+  // of them is the offscreen document with the given path
+  const offscreenUrl = browser.runtime.getURL(path);
+  const existingContexts = await browser.runtime.getContexts({
+    contextTypes: ["OFFSCREEN_DOCUMENT"],
+    documentUrls: [offscreenUrl],
+  });
+
+  if (existingContexts.length > 0) {
+    return;
+  }
+
+  // create offscreen document
+  if (creating) {
+    await creating;
+  } else {
+    creating = browser.offscreen.createDocument({
+      url: path,
+      reasons: ["MATCH_MEDIA"],
+      justification: "Use window.matchMedia to determine the theme color.",
+    });
+    await creating;
+    creating = null;
+  }
+}
+
+/**
+ * @param {string} query
+ * @returns {Promise<MediaQueryList>}
+ */
+let matchMedia = async (query) => {
+  await setupOffscreenDocument("Background/offscreen.html");
+
+  // Send message to offscreen document
+  return await browser.runtime.sendMessage({
+    type: "matchMedia",
+    target: "offscreen",
+    data: query,
+  });
 };
 
 /**
@@ -267,12 +316,12 @@ let icon_theme_color = async (tab) => {
     if (theme?.colors?.popup_text != null) {
       return theme.colors.popup_text;
     }
-    return window.matchMedia("(prefers-color-scheme: dark)").matches
+    return (await matchMedia("(prefers-color-scheme: dark)")).matches
       ? "rgba(255,255,255,0.8)"
       : "rgb(250, 247, 252)";
   }
 
-  return window.matchMedia("(prefers-color-scheme: dark)").matches
+  return (await matchMedia("(prefers-color-scheme: dark)")).matches
     ? "rgba(255,255,255,0.8)"
     : "#5f6368";
 };
@@ -295,14 +344,18 @@ let notify_tab_state = async (tabId, properties) => {
  * @param {{ icon: ImageData, title: string }} action
  */
 let apply_browser_action = async (tabId, action) => {
-  await browser.browserAction.setIcon({
-    tabId: tabId,
-    imageData: action.icon,
-  });
-  await browser.browserAction.setTitle({
-    tabId: tabId,
-    title: action.title,
-  });
+  try {
+    await browser.action.setIcon({
+      tabId: tabId,
+      imageData: action.icon,
+    });
+    await browser.action.setTitle({
+      tabId: tabId,
+      title: action.title,
+    });
+  } catch (error) {
+    console.log(`ERROR ERROR:`, error);
+  }
 };
 
 /**
@@ -331,7 +384,8 @@ let update_button_on_tab = async (tab) => {
       tab.url.match(/^chrome:\/\//) ||
       tab.url.match(/^edge:\/\//) ||
       tab.url.match(/^https?:\/\/chrome\.google\.com/) ||
-      tab.url.match(/^https?:\/\/support\.mozilla\.org/))
+      tab.url.match(/^https?:\/\/support\.mozilla\.org/) ||
+      tab.url === "")
   ) {
     await apply_browser_action(tab.id, {
       icon: await tint_image(BROWSERACTION_ICON, "rgba(208, 2, 27, .22)"),

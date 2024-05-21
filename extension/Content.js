@@ -788,6 +788,8 @@ let popup_css = `
     display: flex;
     flex-direction: column;
     align-items: stretch;
+
+    font-family: sans-serif;
   }
 
   .popup:focus:not(:focus-visible) {
@@ -886,6 +888,8 @@ let create_style_rule = (root = document) => {
       max-width: initial !important;
       max-height: initial !important;
       z-index: ${max_z_index} !important;
+
+      background-color: black;
     }
   `;
 
@@ -959,23 +963,29 @@ let clear_popup = () => {
   return false;
 };
 
-document.addEventListener("click", (event) => {
-  last_click_x = event.pageX;
-  last_click_y = event.pageY;
-  last_click_timestamp = Date.now();
-  // last_click_element = event.target;
+document.addEventListener(
+  "click",
+  (event) => {
+    last_click_x = event.pageX;
+    last_click_y = event.pageY;
+    last_click_timestamp = Date.now();
+    // last_click_element = event.target;
 
-  if (
-    last_popup != null &&
-    (event.target === last_popup || last_popup.contains(event.target))
-  ) {
-    // Clicked inside popup
-  } else {
-    if (clear_popup()) {
-      send_fullscreen_events();
+    console.log("DID CLICK");
+
+    if (
+      last_popup != null &&
+      (event.target === last_popup || last_popup.contains(event.target))
+    ) {
+      // Clicked inside popup
+    } else {
+      if (clear_popup()) {
+        send_fullscreen_events();
+      }
     }
-  }
-});
+  },
+  { capture: true },
+);
 
 let exit_fullscreen_on_page = () => {
   window.postMessage(
