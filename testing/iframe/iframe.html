@@ -1,0 +1,14 @@
+<html style="background-color: black">
+<body>
+  <iframe id="thing" src="about:blank" style="border: none; height: 300px"></iframe>
+  <script>
+    var iframe = document.getElementById('thing');
+    iframe.contentWindow.document.open();
+    iframe.contentWindow.document.write(`<html><body>
+      <div style="background-color: red; width: 200px; height: 200px;" id="supersizeme"></div>
+      <button onclick="console.log('hi'); document.querySelector('#supersizeme').requestFullscreen()">Fullscreen</button>
+    </body></html>`);
+    iframe.contentWindow.document.close();
+  </script>
+</body>
+</html>

@@ -94,6 +94,10 @@ let clean_mode = (mode, disabled) => {
   }
   return disabled === true ? "fullscreen" : "ask";
 };
+
+let ALL_MODE = "mode(*)";
+let ALL_PIP = "pip(*)";
+
 /** @param {import("webextension-polyfill-ts").Tabs.Tab} tab */
 let get_host_config = async (tab) => {
   let host = new URL(tab.url).host;
@@ -103,11 +107,21 @@ let get_host_config = async (tab) => {
     [host_mode]: mode,
     [host]: disabled,
     [host_pip]: pip,
-  } = (await browser.storage.sync.get([host_mode, host, host_pip])) ?? {};
+    [ALL_MODE]: all_mode,
+    [ALL_PIP]: all_pip,
+  } = (await browser.storage.sync.get([
+    host_mode,
+    host,
+    host_pip,
+    ALL_MODE,
+    ALL_PIP,
+  ])) ?? {};
 
   return {
-    mode: clean_mode(mode, disabled),
-    pip: pip === true,
+    mode: clean_mode(mode ?? all_mode, disabled),
+    pip: (pip ?? all_pip) === true,
+    all_mode: clean_mode(all_mode, false),
+    all_pip: all_pip === true,
   };
 };
 
@@ -416,8 +430,9 @@ let update_button_on_tab = async (tab) => {
       title: `Windowed is disabled on ${host}, click to re-activate`,
     });
     await notify_tab_state(tab.id, { disabled: true });
-  } else if (config.mode === "ask" && config.pip === false) {
-    // ONLY ASK - Normal white icon because this is "normal"
+  } else if (config.mode === config.all_mode && config.pip === config.all_pip) {
+    // SAME AS DEFAULT - This used to be config.mode === "ask" && config.pip === false,
+    // but now you can change the default... this is the color for default
     await apply_browser_action(tab.id, {
       icon: await tint_image(BROWSERACTION_ICON, await icon_theme_color(tab)),
       title: `Windowed is enabled on ${host}`,

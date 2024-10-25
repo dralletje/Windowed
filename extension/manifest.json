@@ -26,6 +26,13 @@
       "matches": ["<all_urls>"],
       "js": ["Vendor/browser-polyfill.min.js", "Content.js"],
       "all_frames": true
+    },
+    {
+      "run_at": "document_start",
+      "matches": ["<all_urls>"],
+      "js": ["script_to_insert_directly_into_page.js"],
+      "all_frames": true,
+      "world": "MAIN"
     }
   ],
   "background": {

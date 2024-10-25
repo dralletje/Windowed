@@ -16,6 +16,14 @@
         }
       }
 
+      kbd {
+        font-size: 0.9em;
+        background-color: #c0c0c0;
+        padding-inline: 4px;
+        border-radius: 4px;
+        border: solid 1px #979797;
+      }
+
       .popup {
         font-family: system-ui, sans-serif;
         user-select: none;
@@ -89,6 +97,19 @@
         width: 1.2em;
         margin-right: 1em;
       }
+
+      #set-as-default {
+        display: flex;
+        flex-direction: column;
+        margin-top: 16px;
+
+        font-size: 14px;
+        color: #999;
+
+        &:disabled {
+          display: none;
+        } 
+      }
     </style>
     <style>
       hide-if-no-picture-in-picture {
@@ -96,6 +117,10 @@
       }
       .picture-in-picture-support hide-if-no-picture-in-picture {
         all: inherit;
+      }
+
+      body[data-mode-selected="true"] hide-if-ask {
+        display: none;
       }
 
       p {
@@ -199,6 +224,7 @@
             <img src="../Images/Icon_EnterFullscreen@scalable.svg" />
             <span>Fullscreen</span>
           </label>
+
           <hide-if-no-picture-in-picture>
             <div style="height: 8px"></div>
             <label
@@ -210,6 +236,17 @@
               <span>PiP (if possible)</span>
             </label>
           </hide-if-no-picture-in-picture>
+          
+          <hide-if-ask>
+            <p style="margin-top: 8px">
+            You can always use <kbd>Shift</kbd> to trigger the ask popup.
+            </p>
+          </hide-if-ask>
+
+          <button id="set-as-default" disabled style="margin-top: 16px">
+            <div>Set as default</div>
+            <div>for all websites</div>
+          </button>
         </form>
       </div>
     </div>

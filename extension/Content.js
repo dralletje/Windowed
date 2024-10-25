@@ -141,9 +141,11 @@ let get_host_config_local = async () => {
 };
 
 /**
- * @param {DocumentOrShadowRoot} root
+ * @param {ParentNode} root
+ * @returns {HTMLElement}
  */
 let get_fullscreen_select_element = (root = document) => {
+  /** @type {HTMLElement} */
   let found_in_lightdom = root.querySelector(`[data-${fullscreen_select}]`);
   if (found_in_lightdom) return found_in_lightdom;
 
@@ -287,7 +289,10 @@ const code_to_insert_in_page = on_webpage`{
         ? video_element
         : null;
 
-    let { mode, pip } = await get_host_config_local();
+    let { mode, pip } = is_shift_pressed
+      ? /// Force the mode to be "ask" when shift is pressed
+        { mode: "ask", pip: false }
+      : await get_host_config_local();
     if (pip === true && video_element != null) {
       video_element.requestPictureInPicture();
       onEscapePress(() => {
@@ -375,6 +380,17 @@ const code_to_insert_in_page = on_webpage`{
             title: "Fullscreen (f)",
             target: "fullscreen",
           })}
+          ${
+            ""
+            // Button({
+            //   icon: browser.runtime.getURL(
+            //     "Images/Icon_EnterFullscreen@scalable.svg",
+            //   ),
+            //   text: "Cool PIP",
+            //   title: "Fullscreen (f)",
+            //   target: "cool-pip",
+            // })
+          }
         </div>
       `);
       shadowRoot.appendChild(popup);
@@ -450,7 +466,7 @@ const code_to_insert_in_page = on_webpage`{
     document.body.appendChild(popup_div);
     last_popup = popup_div;
 
-    /** @type {"windowed" | "in-window" | "fullscreen" | "picture-in-picture" | "nothing"} */
+    /** @type {"windowed" | "in-window" | "fullscreen" | "picture-in-picture" | "nothing" | "cool-pip"} */
     let result = await new Promise((resolve) => {
       popup_element.addEventListener("focusout", (event) => {
         // @ts-ignore
@@ -463,15 +479,15 @@ const code_to_insert_in_page = on_webpage`{
       popup_element.addEventListener(
         "keydown",
         (/** @type {KeyboardEvent} */ event) => {
-          if (event.key === "w") {
+          if (event.key === "w" || event.key === "W") {
             event.stopPropagation();
             resolve("windowed");
           }
-          if (event.key === "i") {
+          if (event.key === "i" || event.key === "I") {
             event.stopPropagation();
             resolve("in-window");
           }
-          if (event.key === "f") {
+          if (event.key === "f" || event.key === "F") {
             event.stopPropagation();
 
             // I need this check here, because I can't call the original fullscreen from a
@@ -482,7 +498,7 @@ const code_to_insert_in_page = on_webpage`{
 
             resolve("fullscreen");
           }
-          if (event.key === "p") {
+          if (event.key === "p" || event.key === "P") {
             event.stopPropagation();
             resolve("picture-in-picture");
           }
@@ -534,6 +550,12 @@ const code_to_insert_in_page = on_webpage`{
 
       return "PICTURE-IN-PICTURE";
     }
+
+    // if (result === "cool-pip") {
+    //   await go_in_cool_pip();
+    //   return "COOL-PIP";
+    // }
+
     if (result === "nothing") {
       return "NOTHING";
     }
@@ -624,7 +646,7 @@ const code_to_insert_in_page = on_webpage`{
     send_fullscreen_events();
   }
 
-  window.onmessage = (message) => {
+  window.addEventListener("message", (message) => {
     // Message from content script or parent content script
     if (message.source === message.target || message.source === window.parent) {
       if (message.data?.type === 'WINDOWED-confirm-fullscreen') {
@@ -644,11 +666,11 @@ const code_to_insert_in_page = on_webpage`{
     const frame = [...document.querySelectorAll('iframe')].find(x => x.contentWindow === message.source);
     if (frame != null) {
       if (message.data?.type === 'enter_inwindow_iframe') {
-        frame.dataset['${fullscreen_select}'] = true;
+        frame.dataset['${fullscreen_select}'] = "true";
         make_tab_go_inwindow();
       }
       if (message.data?.type === 'enter_fullscreen_iframe') {
-        frame.dataset['${fullscreen_select}'] = true;
+        frame.dataset['${fullscreen_select}'] = "true";
         make_tab_go_fullscreen();
       }
       if (message.data?.type === 'exit_fullscreen_iframe') {
@@ -656,13 +678,13 @@ const code_to_insert_in_page = on_webpage`{
         exitFullscreen.call(document, original_exitFullscreen);
       }
     }
-  }
+  });
 
   ${
     "" /* NOTE Replace all the `requestFullscreen` aliasses with calls to my own version */
   }
   let original_requestFullscreen = null;
-  requestFullscreen_aliasses.forEach(requestFullscreenAlias => {
+  for (let requestFullscreenAlias of requestFullscreen_aliasses) {
     if (typeof Element.prototype[requestFullscreenAlias] === 'function') {
       let original_function = Element.prototype[requestFullscreenAlias];
       original_requestFullscreen = original_function;
@@ -670,13 +692,13 @@ const code_to_insert_in_page = on_webpage`{
         requestFullscreen.call(this, original_function.bind(this), ...args);
       };
     }
-  });
+  }
 
   ${
     "" /* NOTE Replace all the `exitFullscreen` aliasses with calls to my own version */
   }
   let original_exitFullscreen = null;
-  exitFullscreen_aliasses.forEach(exitFullscreenAlias => {
+  for (let exitFullscreenAlias of exitFullscreen_aliasses) {
     if (typeof Document.prototype[exitFullscreenAlias] === 'function') {
       let original_function = Document.prototype[exitFullscreenAlias];
       original_exitFullscreen = original_function;
@@ -684,7 +706,7 @@ const code_to_insert_in_page = on_webpage`{
         exitFullscreen.call(this, original_function.bind(this), ...args);
       };
     }
-  });
+  }
 }`;
 
 //// I used to insert the code directly as a <script>...</script> tag,
@@ -698,16 +720,19 @@ const code_to_insert_in_page = on_webpage`{
 // document.documentElement.appendChild(elt);
 // document.documentElement.removeChild(elt);
 
-let elt = document.createElement("script");
-elt.src = browser.runtime.getURL("script_to_insert_directly_into_page.js");
-document.documentElement.appendChild(elt);
-document.documentElement.removeChild(elt);
+/// No longer necessary as I insert this via manifest.json
+// let elt = document.createElement("script");
+// elt.src = browser.runtime.getURL("script_to_insert_directly_into_page.js");
+// document.documentElement.appendChild(elt);
+// document.documentElement.removeChild(elt);
 
 //// This is just for myself as debugging, but it will tell me if the script that is inserted,
 //// is actually the same as the script I am expecting it to be. (because debugging could get very frustrating)
 let async = async (async) => async();
 async(async () => {
-  let response = await fetch(elt.src);
+  let response = await fetch(
+    browser.runtime.getURL("script_to_insert_directly_into_page.js"),
+  );
   let result = await response.text();
   if (result !== code_to_insert_in_page) {
     // prettier-ignore
@@ -844,7 +869,7 @@ let popup_css = `
 `;
 
 /**
- * @param {DocumentOrShadowRoot} root
+ * @param {ParentNode} root
  */
 let create_style_rule = (root = document) => {
   let css = `
@@ -894,10 +919,12 @@ let create_style_rule = (root = document) => {
   `;
 
   let styleEl = document.createElement("style");
-  if (root.host) {
+  if (root instanceof ShadowRoot) {
     root.appendChild(styleEl);
-  } else {
+  } else if (root instanceof Document) {
     root.head.appendChild(styleEl);
+  } else {
+    throw new Error("[WINDOWED] Could not find a place to put the style");
   }
   styleEl.appendChild(document.createTextNode(css));
 
@@ -908,13 +935,17 @@ let create_style_rule = (root = document) => {
   }
 };
 
+/**
+ * @param {HTMLElement} element
+ */
 const parent_elements = function* (element) {
   let el = element;
   while (el) {
+    let root_node = el.getRootNode();
     if (el.parentElement) {
       el = el.parentElement;
-    } else if (el.getRootNode()?.host) {
-      el = el.getRootNode().host;
+    } else if (root_node instanceof ShadowRoot) {
+      el = /** @type {HTMLElement} */ (root_node.host);
     } else {
       break;
     }
@@ -949,6 +980,8 @@ let last_click_y = null;
 let last_click_timestamp = 0;
 let last_click_element = null;
 
+let is_shift_pressed = false;
+
 let last_popup = null;
 let is_in_fullscreen = false;
 
@@ -963,6 +996,13 @@ let clear_popup = () => {
   return false;
 };
 
+document.addEventListener("keydown", (event) => {
+  is_shift_pressed = event.shiftKey;
+});
+document.addEventListener("keyup", (event) => {
+  is_shift_pressed = event.shiftKey;
+});
+
 document.addEventListener(
   "click",
   (event) => {
@@ -970,8 +1010,6 @@ document.addEventListener(
     last_click_y = event.pageY;
     last_click_timestamp = Date.now();
     // last_click_element = event.target;
-
-    console.log("DID CLICK");
 
     if (
       last_popup != null &&
@@ -1001,6 +1039,14 @@ let createElementFromHTML = (htmlString) => {
   div.innerHTML = htmlString.trim();
 
   return div.firstChild;
+};
+
+let go_in_cool_pip = async () => {
+  let element = get_fullscreen_select_element();
+
+  // Open a Picture-in-Picture window.
+  await globalThis.documentPictureInPicture.requestWindow();
+  window.postMessage({ type: "WINDOWED-cool-pip" }, "*");
 };
 
 let go_in_window = async () => {
@@ -1188,10 +1234,10 @@ window.addEventListener("message", async (event) => {
           resultType: "resolve",
           result: result,
         },
+        // @ts-ignore
         "*",
       );
     } catch (err) {
-      // @ts-ignore
       event.source.postMessage(
         {
           type: "CUSTOM_WINDOWED_TO_PAGE",
@@ -1202,6 +1248,7 @@ window.addEventListener("message", async (event) => {
             stack: err.stack,
           },
         },
+        // @ts-ignore
         "*",
       );
     }

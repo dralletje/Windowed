@@ -10,7 +10,8 @@
     "noImplicitThis": true,
     "alwaysStrict": true,
     "esModuleInterop": true,
-    "moduleResolution": "node"
+    "moduleResolution": "node",
+    "moduleDetection": "force"
   },
   "exclude": ["./Vendor/browser-polyfill.min.js"]
 }

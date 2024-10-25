@@ -172,7 +172,7 @@
     send_fullscreen_events();
   }
 
-  window.onmessage = (message) => {
+  window.addEventListener("message", (message) => {
     // Message from content script or parent content script
     if (message.source === message.target || message.source === window.parent) {
       if (message.data?.type === 'WINDOWED-confirm-fullscreen') {
@@ -192,11 +192,11 @@
     const frame = [...document.querySelectorAll('iframe')].find(x => x.contentWindow === message.source);
     if (frame != null) {
       if (message.data?.type === 'enter_inwindow_iframe') {
-        frame.dataset['windowed_long_id_that_does_not_conflict_select'] = true;
+        frame.dataset['windowed_long_id_that_does_not_conflict_select'] = "true";
         make_tab_go_inwindow();
       }
       if (message.data?.type === 'enter_fullscreen_iframe') {
-        frame.dataset['windowed_long_id_that_does_not_conflict_select'] = true;
+        frame.dataset['windowed_long_id_that_does_not_conflict_select'] = "true";
         make_tab_go_fullscreen();
       }
       if (message.data?.type === 'exit_fullscreen_iframe') {
@@ -204,11 +204,11 @@
         exitFullscreen.call(document, original_exitFullscreen);
       }
     }
-  }
+  });
 
   
   let original_requestFullscreen = null;
-  requestFullscreen_aliasses.forEach(requestFullscreenAlias => {
+  for (let requestFullscreenAlias of requestFullscreen_aliasses) {
     if (typeof Element.prototype[requestFullscreenAlias] === 'function') {
       let original_function = Element.prototype[requestFullscreenAlias];
       original_requestFullscreen = original_function;
@@ -216,11 +216,11 @@
         requestFullscreen.call(this, original_function.bind(this), ...args);
       };
     }
-  });
+  }
 
   
   let original_exitFullscreen = null;
-  exitFullscreen_aliasses.forEach(exitFullscreenAlias => {
+  for (let exitFullscreenAlias of exitFullscreen_aliasses) {
     if (typeof Document.prototype[exitFullscreenAlias] === 'function') {
       let original_function = Document.prototype[exitFullscreenAlias];
       original_exitFullscreen = original_function;
@@ -228,5 +228,5 @@
         exitFullscreen.call(this, original_function.bind(this), ...args);
       };
     }
-  });
+  }
 }
