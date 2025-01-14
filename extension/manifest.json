@@ -30,7 +30,7 @@
     {
       "run_at": "document_start",
       "matches": ["<all_urls>"],
-      "js": ["script_to_insert_directly_into_page.js"],
+      "js": ["Windowed-inject-into-page.js"],
       "all_frames": true,
       "world": "MAIN"
     }
@@ -48,7 +48,7 @@
       "resources": [
         "Vendor/browser-polyfill.min.js",
         "Vendor/Browser.js",
-        "script_to_insert_directly_into_page.js"
+        "Windowed-inject-into-page.js"
       ],
       "matches": ["<all_urls>"]
     }

@@ -3,6 +3,24 @@
 // Sounds a bit a weird, for a file with 1200 lines, but I want it to so light that I need
 // more rather than less code. No modules or anything fance like that
 
+/**
+ * From https://github.com/fabiospampinato/noop-tag/blob/master/src/index.ts
+ *
+ * @param {TemplateStringsArray} strings
+ * @param {unknown[]} expressions
+ * @returns {string}
+ */
+const noop_template = (strings, ...expressions) => {
+  let result = strings[0];
+  for (let i = 1, l = strings.length; i < l; i++) {
+    result += expressions[i - 1];
+    result += strings[i];
+  }
+  return result;
+};
+let css = noop_template;
+let html = noop_template;
+
 // @ts-ignore
 const browser = /** @type {import("webextension-polyfill-ts").Browser} */ (
   globalThis.browser
@@ -160,9 +178,7 @@ let get_fullscreen_select_element = (root = document) => {
 
 let Button = ({ icon, title, text, target }) => `
   <button data-target="${target}" title="${title}">
-    <img
-      src="${icon}"
-    />
+    <img src="${icon}" alt="" />
     <span>${text}</span>
   </button>
 `;
@@ -341,8 +357,9 @@ const code_to_insert_in_page = on_webpage`{
           ? "translateX(0px)"
           : "translateX(-100%)";
 
+      /// Popup that shows if there is a recent click
       let popup = createElementFromHTML(`
-        <div class="popup" tabIndex="1" style="
+        <menu class="popup" tabIndex="1" style="
           position: absolute;
           top: ${last_click_y}px;
           left: ${last_click_x}px;
@@ -350,51 +367,49 @@ const code_to_insert_in_page = on_webpage`{
         ">
           ${
             video_element
-              ? Button({
+              ? `<li>
+                ${Button({
                   icon: browser.runtime.getURL("Images/Icon_PiP@scalable.svg"),
                   text: "PiP",
                   title: "Picture-in-picture (p)",
                   target: "picture-in-picture",
-                })
+                })}
+              </li>`
               : ""
           }
-          ${Button({
-            icon: browser.runtime.getURL("Images/Icon_Windowed@scalable.svg"),
-            text: "Windowed",
-            title: "Windowed (w)",
-            target: "windowed",
-          })}
-          ${Button({
-            icon: browser.runtime.getURL(
-              "Images/Icon_InWindow_Mono@scalable.svg",
-            ),
-            text: "In-window",
-            title: "In-window (i)",
-            target: "in-window",
-          })}
-          ${Button({
-            icon: browser.runtime.getURL(
-              "Images/Icon_EnterFullscreen@scalable.svg",
-            ),
-            text: "Fullscreen",
-            title: "Fullscreen (f)",
-            target: "fullscreen",
-          })}
-          ${
-            ""
-            // Button({
-            //   icon: browser.runtime.getURL(
-            //     "Images/Icon_EnterFullscreen@scalable.svg",
-            //   ),
-            //   text: "Cool PIP",
-            //   title: "Fullscreen (f)",
-            //   target: "cool-pip",
-            // })
-          }
-        </div>
+          <li>
+            ${Button({
+              icon: browser.runtime.getURL("Images/Icon_Windowed@scalable.svg"),
+              text: "Windowed",
+              title: "Windowed (w)",
+              target: "windowed",
+            })}
+          </li>
+          <li>
+            ${Button({
+              icon: browser.runtime.getURL(
+                "Images/Icon_InWindow_Mono@scalable.svg",
+              ),
+              text: "In-window",
+              title: "In-window (i)",
+              target: "in-window",
+            })}
+          </li>
+          <li>
+            ${Button({
+              icon: browser.runtime.getURL(
+                "Images/Icon_EnterFullscreen@scalable.svg",
+              ),
+              text: "Fullscreen",
+              title: "Fullscreen (f)",
+              target: "fullscreen",
+            })}
+          </li>
+        </menu>
       `);
       shadowRoot.appendChild(popup);
     } else {
+      /// Popup that shows if there is no recent click (centered in the screen)
       let popup = createElementFromHTML(`
         <div>
           <div
@@ -417,40 +432,42 @@ const code_to_insert_in_page = on_webpage`{
           ">
             <div style="padding: 1.25em; padding-bottom: 0.25em; padding-top: 0.25em">Enter fullscreen</div>
             <div style="height: 10px"></div>
-            ${
-              video_element
-                ? Button({
-                    icon: browser.runtime.getURL(
-                      "Images/Icon_PiP@scalable.svg",
-                    ),
-                    text: "PiP",
-                    title: "Picture in picture (p)",
-                    target: "picture-in-picture",
-                  })
-                : ""
-            }
-            ${Button({
-              icon: browser.runtime.getURL("Images/Icon_Windowed@scalable.svg"),
-              text: "Windowed",
-              title: "Windowed (w)",
-              target: "windowed",
-            })}
-            ${Button({
-              icon: browser.runtime.getURL(
-                "Images/Icon_InWindow_Mono@scalable.svg",
-              ),
-              text: "In-window",
-              title: "In-window (i)",
-              target: "in-window",
-            })}
-            ${Button({
-              icon: browser.runtime.getURL(
-                "Images/Icon_EnterFullscreen@scalable.svg",
-              ),
-              text: "Fullscreen",
-              title: "Fullscreen (f)",
-              target: "fullscreen",
-            })}
+            <menu style="display: flex; flex-direction: column; align-items: stretch;">
+              ${
+                video_element
+                  ? `
+                    <li>
+                      <button data-target="picture-in-picture" title="Picture in picture (p)" class="flex flex-row">
+                        <img src="${browser.runtime.getURL("Images/Icon_PiP@scalable.svg")}" alt="" />
+                        <span class="flex-1">PiP</span>
+                        <kbd style="margin-left: 16px">p</kbd>
+                      </button>
+                    </li>
+                  `
+                  : ""
+              }
+              <li>
+                <button data-target="windowed" title="Windowed (w)" class="flex flex-row">
+                  <img src="${browser.runtime.getURL("Images/Icon_Windowed@scalable.svg")}" alt="" />
+                  <span class="flex-1">Windowed</span>
+                  <kbd style="margin-left: 16px">w</kbd>
+                </button>
+              </li>
+              <li>
+                <button data-target="in-window" title="In-window (i)" class="flex flex-row">
+                  <img src="${browser.runtime.getURL("Images/Icon_InWindow_Mono@scalable.svg")}" alt="" />
+                  <span class="flex-1">In-window</span>
+                  <kbd style="margin-left: 16px">i</kbd>
+                </button>
+              </li>
+              <li>
+                <button data-target="fullscreen" title="Fullscreen (f)" class="flex flex-row">
+                  <img src="${browser.runtime.getURL("Images/Icon_EnterFullscreen@scalable.svg")}" alt="" />
+                  <span class="flex-1">Fullscreen</span>
+                  <kbd style="margin-left: 16px">f</kbd>
+                </button>
+              </li>
+            </menu>
           </div>
         </div>
       `);
@@ -722,7 +739,7 @@ const code_to_insert_in_page = on_webpage`{
 
 /// No longer necessary as I insert this via manifest.json
 // let elt = document.createElement("script");
-// elt.src = browser.runtime.getURL("script_to_insert_directly_into_page.js");
+// elt.src = browser.runtime.getURL("Windowed-inject-into-page.js");
 // document.documentElement.appendChild(elt);
 // document.documentElement.removeChild(elt);
 
@@ -731,7 +748,7 @@ const code_to_insert_in_page = on_webpage`{
 let async = async (async) => async();
 async(async () => {
   let response = await fetch(
-    browser.runtime.getURL("script_to_insert_directly_into_page.js"),
+    browser.runtime.getURL("Windowed-inject-into-page.js"),
   );
   let result = await response.text();
   if (result !== code_to_insert_in_page) {
@@ -797,7 +814,21 @@ let delay = (ms) => {
   });
 };
 
-let popup_css = `
+let popup_css = css`
+  /* Poor mans tailwind */
+  .flex {
+    display: flex;
+  }
+  .flex-col {
+    flex-direction: column;
+  }
+  .flex-row {
+    flex-direction: row;
+  }
+  .flex-1 {
+    flex: 1;
+  }
+
   .popup {
     background-color: white;
     border-radius: 3px;
@@ -817,7 +848,7 @@ let popup_css = `
     font-family: sans-serif;
   }
 
-  .popup:focus:not(:focus-visible) {
+  .popup:focus {
     outline: none;
   }
 
@@ -825,9 +856,10 @@ let popup_css = `
     .popup {
       filter: invert(0.9);
     }
-  }  
+  }
 
   .popup [data-target] {
+    text-align: inherit;
     cursor: pointer;
     padding: 1.25em;
     padding-top: 0.25em;
@@ -866,13 +898,30 @@ let popup_css = `
     width: 1.2em;
     margin-right: 1em;
   }
+
+  li {
+    display: contents;
+  }
+  menu {
+    margin: 0;
+    padding: 0;
+    list-style-type: none;
+  }
+
+  kbd {
+    font-size: 0.9em;
+    background-color: #c0c0c0;
+    padding-inline: 4px;
+    border-radius: 4px;
+    border: solid 1px #979797;
+  }
 `;
 
 /**
  * @param {ParentNode} root
  */
 let create_style_rule = (root = document) => {
-  let css = `
+  let css_text = css`
     [data-${fullscreen_parent}] {
       /* This thing is css black magic */
       all: initial !important;
@@ -926,7 +975,7 @@ let create_style_rule = (root = document) => {
   } else {
     throw new Error("[WINDOWED] Could not find a place to put the style");
   }
-  styleEl.appendChild(document.createTextNode(css));
+  styleEl.appendChild(document.createTextNode(css_text));
 
   let shadowroot_maybe = root.querySelector(`[data-${shadowdom_trail}`);
   if (shadowroot_maybe != null) {
@@ -998,9 +1047,29 @@ let clear_popup = () => {
 
 document.addEventListener("keydown", (event) => {
   is_shift_pressed = event.shiftKey;
+  let { mode, pip } = current_mode;
+  window.postMessage(
+    {
+      type: "WINDOWED-notify",
+      disabled: is_shift_pressed
+        ? false
+        : mode === "fullscreen" && pip === false,
+    },
+    "*",
+  );
 });
 document.addEventListener("keyup", (event) => {
   is_shift_pressed = event.shiftKey;
+  let { mode, pip } = current_mode;
+  window.postMessage(
+    {
+      type: "WINDOWED-notify",
+      disabled: is_shift_pressed
+        ? false
+        : mode === "fullscreen" && pip === false,
+    },
+    "*",
+  );
 });
 
 document.addEventListener(
@@ -1345,13 +1414,18 @@ let onEscapePress = (fn) => {
   };
 };
 
+let current_mode = { mode: "ask", pip: false };
+
 let check_disabled_state = async () => {
   try {
     let { mode, pip } = await get_host_config_local();
+    current_mode = { mode, pip };
     window.postMessage(
       {
         type: "WINDOWED-notify",
-        disabled: mode === "fullscreen" && pip === false,
+        disabled: is_shift_pressed
+          ? false
+          : mode === "fullscreen" && pip === false,
       },
       "*",
     );
