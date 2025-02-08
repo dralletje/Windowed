@@ -293,8 +293,6 @@ const code_to_insert_in_page = on_webpage`{
 
     let element = get_fullscreen_select_element();
 
-    console.log(`element:`, element);
-
     // Find possible picture-in-picture video element
     let video_element = /** @type {PictureInPictureVideoElement} */ (
       element.querySelector("video:not([disablepictureinpicture])")
