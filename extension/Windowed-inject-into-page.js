@@ -213,7 +213,7 @@
       let original_function = Element.prototype[requestFullscreenAlias];
       original_requestFullscreen = original_function;
       Element.prototype[requestFullscreenAlias] = function(...args) {
-        requestFullscreen.call(this, original_function.bind(this), ...args);
+        return requestFullscreen.call(this, original_function.bind(this), ...args);
       };
     }
   }
@@ -225,7 +225,7 @@
       let original_function = Document.prototype[exitFullscreenAlias];
       original_exitFullscreen = original_function;
       Document.prototype[exitFullscreenAlias] = function(...args) {
-        exitFullscreen.call(this, original_function.bind(this), ...args);
+        return exitFullscreen.call(this, original_function.bind(this), ...args);
       };
     }
   }
