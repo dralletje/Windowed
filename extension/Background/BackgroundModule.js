@@ -174,6 +174,12 @@ onMessage("please_make_me_a_popup", async (message, sender) => {
     type: windowType,
   } = await browser.windows.get(sender.tab.windowId);
 
+  await TabOrigins.set(sender.tab.id, {
+    windowId: sender.tab.windowId,
+    index: sender.tab.index,
+    pinned: sender.tab.pinned,
+  });
+
   // TODO Check possible 'panel' support in firefox
   let frame = message.position;
   if (windowType === "popup") {
@@ -213,6 +219,39 @@ onMessage("please_make_me_a_popup", async (message, sender) => {
 });
 
 /**
+ * @typedef TabOrigin
+ * @type {{
+ *   windowId: import("webextension-polyfill").Windows.Window["id"]
+ *   pinned: import("webextension-polyfill").Tabs.Tab["pinned"]
+ *   index: import("webextension-polyfill").Tabs.Tab["index"]
+ * }}
+ */
+let TabOrigins = {
+  /**
+   * @param {import("webextension-polyfill").Tabs.Tab["id"]} tabId
+   * @returns {string}
+   */
+  key: (tabId) => `tab_origin(${tabId})`,
+  /**
+   * @param {import("webextension-polyfill").Tabs.Tab["id"]} tabId
+   * @returns {Promise<TabOrigin | undefined>}
+   */
+  get: async (tabId) => {
+    let key = TabOrigins.key(tabId);
+    let { [key]: data } = await browser.storage.session.get(key);
+    return /** @type {any} */ (data);
+  },
+  /**
+   * @param {import("webextension-polyfill").Tabs.Tab["id"]} tabId
+   * @param {TabOrigin} tab_origin
+   */
+  set: async (tabId, tab_origin) => {
+    let key = TabOrigins.key(tabId);
+    await browser.storage.session.set({ [key]: tab_origin });
+  },
+};
+
+/**
  * Take the current tab, and put it into a tab-ed window again.
  * 1. Last focussed window
  * 2. Other tab-containing window (not popups without tab bar)
@@ -222,6 +261,22 @@ onMessage("please_make_me_a_tab_again", async (message, sender) => {
   let { type: windowType } = await browser.windows.get(sender.tab.windowId);
   if (windowType === "normal") {
     return;
+  }
+
+  let origin = await TabOrigins.get(sender.tab.id);
+  if (origin != undefined) {
+    let window = await browser.windows.get(origin.windowId).catch(() => null);
+    if (window) {
+      await browser.tabs.move(sender.tab.id, {
+        windowId: origin.windowId,
+        index: origin.index,
+      });
+      await browser.tabs.update(sender.tab.id, {
+        active: true,
+        pinned: origin.pinned,
+      });
+      return;
+    }
   }
 
   let fallback_window = await get_fallback_window(sender.tab.windowId);
