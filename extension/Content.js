@@ -22,7 +22,7 @@ let css = noop_template;
 let html = noop_template;
 
 // @ts-ignore
-const browser = /** @type {import("webextension-polyfill-ts").Browser} */ (
+const browser = /** @type {import("webextension-polyfill").Browser} */ (
   globalThis.browser
 );
 

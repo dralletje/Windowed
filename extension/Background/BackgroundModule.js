@@ -2,6 +2,7 @@
 import { tint_image } from "./tint_image.js";
 // import { browser } from "../Vendor/Browser.js";
 
+/** @type {import("webextension-polyfill").Browser} */
 let browser = chrome;
 
 let BROWSERACTION_ICON = "/Images/Icon_Windowed_Mono@1x.png";
@@ -14,7 +15,7 @@ let is_firefox = browser_info_promise.then(
 );
 
 /**
- * @param {import("webextension-polyfill-ts").Windows.Window} window
+ * @param {import("webextension-polyfill").Windows.Window} window
  */
 let is_valid_window = (window) => {
   return (
@@ -27,8 +28,8 @@ let is_valid_window = (window) => {
 /**
  * Firefox can't take the `focused` property to browser.windows.create/update
  * So I just take it out when using firefox 🤷‍♀️
- * @param {import("webextension-polyfill-ts").Windows.CreateCreateDataType} window_properties
- * @returns {Promise<import("webextension-polyfill-ts").Windows.CreateCreateDataType>}
+ * @param {import("webextension-polyfill").Windows.CreateCreateDataType} window_properties
+ * @returns {Promise<import("webextension-polyfill").Windows.CreateCreateDataType>}
  */
 let firefix_window = async (window_properties) => {
   let is_it_firefox = await is_firefox;
@@ -44,7 +45,7 @@ let firefix_window = async (window_properties) => {
 // In case of none being found, null is returned and the caller should make a new window himself (with the tab attached)
 /**
  * @param {number} windowId
- * @returns {Promise<import("webextension-polyfill-ts").Windows.Window>}
+ * @returns {Promise<import("webextension-polyfill").Windows.Window>}
  */
 const get_fallback_window = async (windowId) => {
   const first_fallback_window = await browser.windows.getLastFocused({
@@ -98,7 +99,7 @@ let clean_mode = (mode, disabled) => {
 let ALL_MODE = "mode(*)";
 let ALL_PIP = "pip(*)";
 
-/** @param {import("webextension-polyfill-ts").Tabs.Tab} tab */
+/** @param {import("webextension-polyfill").Tabs.Tab} tab */
 let get_host_config = async (tab) => {
   let host = new URL(tab.url).host;
   let host_mode = `mode(${host})`;
@@ -128,7 +129,7 @@ let get_host_config = async (tab) => {
 /**
  * Wrapper to do some basic routing on extension messaging
  * @param {string} type
- * @param {(message: any, sender: import("webextension-polyfill-ts").Runtime.MessageSender) => Promise<any>} fn
+ * @param {(message: any, sender: import("webextension-polyfill").Runtime.MessageSender) => Promise<any>} fn
  * @return {void}
  */
 let onMessage = (type, fn) => {
@@ -318,7 +319,7 @@ let matchMedia = async (query) => {
  * Tries to figure out the default icon color
  * - Tries to use the current theme on firefox
  * - Else defaults to light and dark mode
- * @param {import("webextension-polyfill-ts").Tabs.Tab} tab
+ * @param {import("webextension-polyfill").Tabs.Tab} tab
  * @returns {Promise<string>}
  */
 let icon_theme_color = async (tab) => {
@@ -373,7 +374,7 @@ let apply_browser_action = async (tabId, action) => {
 };
 
 /**
- * @param {import("webextension-polyfill-ts").Tabs.Tab} tab
+ * @param {import("webextension-polyfill").Tabs.Tab} tab
  */
 let update_button_on_tab = async (tab) => {
   let has_contentscript_active =

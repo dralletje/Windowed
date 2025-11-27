@@ -51,7 +51,7 @@ let clean_mode = (mode, disabled) => {
   }
   return disabled === true ? "fullscreen" : "ask";
 };
-/** @param {import("webextension-polyfill-ts").Tabs.Tab} tab */
+/** @param {import("webextension-polyfill").Tabs.Tab} tab */
 let get_host_config = async (tab) => {
   let host = new URL(tab.url).host;
   let host_mode = `mode(${host})`;

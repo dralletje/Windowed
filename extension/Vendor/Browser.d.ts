@@ -1,1 +1,1 @@
-export declare let browser: import("webextension-polyfill-ts").Browser;
+export declare let browser: import("webextension-polyfill").Browser;
