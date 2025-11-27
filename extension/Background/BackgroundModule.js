@@ -1,8 +1,23 @@
 // Import is not yet allowed in firefox, so for now I put tint_image in manifest.json
+import { icon_theme_color_chrome } from "./theme-color/chrome.js";
+import { icon_theme_color_firefox } from "./theme-color/firefox.js";
 import { tint_image } from "./tint_image.js";
 // import { browser } from "../Vendor/Browser.js";
 
+/**
+ * @param {import("webextension-polyfill").Tabs.Tab} tab
+ * @returns {Promise<string>}
+ */
+let icon_theme_color = async (tab) => {
+  if (await is_firefox) {
+    return await icon_theme_color_firefox(tab);
+  } else {
+    return await icon_theme_color_chrome(tab);
+  }
+};
+
 /** @type {import("webextension-polyfill").Browser} */
+// @ts-ignore
 let browser = chrome;
 
 let BROWSERACTION_ICON = "/Images/Icon_Windowed_Mono@1x.png";
@@ -110,13 +125,15 @@ let get_host_config = async (tab) => {
     [host_pip]: pip,
     [ALL_MODE]: all_mode,
     [ALL_PIP]: all_pip,
-  } = (await browser.storage.sync.get([
-    host_mode,
-    host,
-    host_pip,
-    ALL_MODE,
-    ALL_PIP,
-  ])) ?? {};
+  } = /** @type {any} */ (
+    await browser.storage.sync.get([
+      host_mode,
+      host,
+      host_pip,
+      ALL_MODE,
+      ALL_PIP,
+    ])
+  ) ?? {};
 
   return {
     mode: clean_mode(mode ?? all_mode, disabled),
@@ -134,6 +151,7 @@ let get_host_config = async (tab) => {
  */
 let onMessage = (type, fn) => {
   browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    // @ts-ignore
     if (message?.type === type) {
       fn(message, sender)
         .then((result) => {
@@ -162,6 +180,10 @@ onMessage("update_windowed_button", async (message, sender) => {
 
 onMessage("get_windowed_config", async (message, sender) => {
   return await get_host_config(sender.tab);
+});
+
+onMessage("get_theme", async (message, sender) => {
+  return await browser.theme.getCurrent();
 });
 
 /** Detatch the current tab and put it into a standalone popup window */
@@ -327,75 +349,6 @@ let ping_content_script = async (tabId) => {
   }
 };
 
-let creating; // A global promise to avoid concurrency issues
-async function setupOffscreenDocument(path) {
-  // Check all windows controlled by the service worker to see if one
-  // of them is the offscreen document with the given path
-  const offscreenUrl = browser.runtime.getURL(path);
-  const existingContexts = await browser.runtime.getContexts({
-    contextTypes: ["OFFSCREEN_DOCUMENT"],
-    documentUrls: [offscreenUrl],
-  });
-
-  if (existingContexts.length > 0) {
-    return;
-  }
-
-  // create offscreen document
-  if (creating) {
-    await creating;
-  } else {
-    creating = browser.offscreen.createDocument({
-      url: path,
-      reasons: ["MATCH_MEDIA"],
-      justification: "Use window.matchMedia to determine the theme color.",
-    });
-    await creating;
-    creating = null;
-  }
-}
-
-/**
- * @param {string} query
- * @returns {Promise<MediaQueryList>}
- */
-let matchMedia = async (query) => {
-  await setupOffscreenDocument("Background/offscreen.html");
-
-  // Send message to offscreen document
-  return await browser.runtime.sendMessage({
-    type: "matchMedia",
-    target: "offscreen",
-    data: query,
-  });
-};
-
-/**
- * Tries to figure out the default icon color
- * - Tries to use the current theme on firefox
- * - Else defaults to light and dark mode
- * @param {import("webextension-polyfill").Tabs.Tab} tab
- * @returns {Promise<string>}
- */
-let icon_theme_color = async (tab) => {
-  if (await is_firefox) {
-    let theme = await browser.theme.getCurrent(tab.windowId);
-    if (theme?.colors?.icons != null) {
-      return theme.colors.icons;
-    }
-    if (theme?.colors?.popup_text != null) {
-      return theme.colors.popup_text;
-    }
-    return (await matchMedia("(prefers-color-scheme: dark)")).matches
-      ? "rgba(255,255,255,0.8)"
-      : "rgb(250, 247, 252)";
-  }
-
-  return (await matchMedia("(prefers-color-scheme: dark)")).matches
-    ? "rgba(255,255,255,0.8)"
-    : "#5f6368";
-};
-
 /**
  * This looks a bit weird (and honestly it is) but it opens a port to the content script on a page,
  * and then the page knows it should reload it's settings.
@@ -417,6 +370,7 @@ let apply_browser_action = async (tabId, action) => {
   try {
     await browser.action.setIcon({
       tabId: tabId,
+      // @ts-ignore
       imageData: action.icon,
     });
     await browser.action.setTitle({
@@ -424,7 +378,7 @@ let apply_browser_action = async (tabId, action) => {
       title: action.title,
     });
   } catch (error) {
-    console.log(`ERROR ERROR:`, error);
+    console.log(`Setting browser action ERROR:`, error);
   }
 };
 
@@ -455,6 +409,7 @@ let update_button_on_tab = async (tab) => {
       tab.url.match(/^edge:\/\//) ||
       tab.url.match(/^https?:\/\/chrome\.google\.com/) ||
       tab.url.match(/^https?:\/\/support\.mozilla\.org/) ||
+      tab.url.match(/^https?:\/\/addons.mozilla.org/) ||
       tab.url === "")
   ) {
     await apply_browser_action(tab.id, {

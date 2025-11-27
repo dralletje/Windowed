@@ -1,41 +1,59 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
   <head>
     <style>
+      :root {
+        --theme-popup: transparent;
+        --theme-popup_text: currentColor;
+        --theme-popup_highlight: rgba(255, 255, 255, 0.1);
+        --theme-popup_highlight_text: currentColor;
+      }
       body,
       html {
         margin: 0;
         padding: 0;
-        background-color: white;
+        background-color: var(--theme-popup, #1a1a1a);
+        color-scheme: light dark;
       }
-      @media (prefers-color-scheme: dark) {
-        body,
-        html {
-          /* Explicit background color for firefox */
-          background-color: #1a1a1a;
-        }
+
+      button {
+        font-size: inherit;
+        border: none;
+        box-shadow: none;
+        background-color: transparent;
       }
 
       kbd {
         font-size: 0.9em;
-        background-color: #c0c0c0;
         padding-inline: 4px;
         border-radius: 4px;
-        border: solid 1px #979797;
+
+        @media (prefers-color-scheme: dark) {
+          border: solid 1px #676767;
+          background-color: #404040;
+        }
+        @media (prefers-color-scheme: light) {
+          border: solid 1px #979797;
+          background-color: #c0c0c0;
+        }
       }
 
       .popup {
         font-family: system-ui, sans-serif;
         user-select: none;
 
-        background-color: white;
         /* border-radius: 3px; */
         /* border: solid #eee 1px; */
         /* box-shadow: 0px 2px 4px #00000026; */
         padding-top: 12px;
         padding-bottom: 12px;
-        font-size: 16px;
-        color: black;
+
+        .browser-firefox & {
+          padding-inline: 12px;
+        }
+
+        font-size: 14px;
+        color: var(--theme-popup_text);
         width: min-content;
         min-width: 210px;
         z-index: 2147483647;
@@ -44,11 +62,6 @@
         flex-direction: column;
         align-items: stretch;
       }
-      @media (prefers-color-scheme: dark) {
-        .popup {
-          filter: invert(0.9);
-        }
-      }
 
       .popup:focus:not(:focus-visible) {
         outline: none;
@@ -56,59 +69,88 @@
 
       .popup [data-target] {
         cursor: pointer;
-        padding: 1.25em;
-        padding-top: 0.25em;
-        padding-bottom: 0.25em;
-        background-color: white;
-        color: black; /* Force black for if the page has color: white */
 
         display: flex;
         flex-direction: row;
         align-items: center;
 
-        font-size: inherit;
-        border: none;
-        box-shadow: none;
-
         white-space: nowrap;
+
+        .browser-chrome & {
+          padding-inline: 1.25em;
+          padding-block: 0.5em;
+        }
+        .browser-firefox & {
+          padding-inline: 0.5em;
+          padding-block: 0.5em;
+          border-radius: 8px;
+        }
+
+        &::-moz-focus-inner,
+        .popup::-moz-focus-inner {
+          border: none;
+        }
+
+        &:hover,
+        &:focus {
+          &:not(:focus-visible) {
+            outline: none;
+          }
+
+          background-color: var(--theme-popup_highlight);
+          color: var(--theme-popup_highlight_text);
+          /*.browser-firefox & {
+          }
+          .browser-chrome & {
+            background-color: rgba(255, 255, 255, 0.2);
+          }*/
+        }
+
+        & > input[type="radio"],
+        & > input[type="checkbox"] {
+          margin: 0;
+          margin-right: 16px;
+        }
+        & > .icon {
+          height: 1.2em;
+          width: 1.2em;
+          margin-right: 1em;
+        }
       }
 
-      [data-target]::-moz-focus-inner,
       .popup::-moz-focus-inner {
         border: none;
       }
-      [data-target]:focus {
-        filter: brightness(0.95);
-      }
-      [data-target]:focus:not(:focus-visible) {
-        outline: none;
-      }
-      [data-target]:hover {
-        filter: brightness(0.9);
-      }
 
-      [data-target] > input[type="radio"],
-      [data-target] > input[type="checkbox"] {
-        margin: 0;
-        margin-right: 16px;
-      }
-      [data-target] > img {
-        height: 1.2em;
-        width: 1.2em;
-        margin-right: 1em;
+      .mask-icon {
+        background-color: currentColor;
+        mask-size: contain;
+        /*mask-image: url(../Images/Icon_InWindow_Mono@scalable.svg);*/
       }
 
       #set-as-default {
         display: flex;
         flex-direction: column;
-        margin-top: 16px;
 
         font-size: 14px;
         color: #999;
 
+        .browser-firefox & {
+          border-radius: 8px;
+        }
+        .browser-chrome & {
+          padding-block: 8px;
+        }
+
+        &:hover,
+        &:focus {
+          background-color: var(--theme-popup_highlight);
+          color: var(--theme-popup_highlight_text);
+        }
+
         &:disabled {
           display: none;
-        } 
+        }
       }
     </style>
     <style>
@@ -126,11 +168,15 @@
       p {
         all: unset;
         display: block;
-        padding: 20px;
-        padding-bottom: 4px;
-        padding-top: 4px;
+        padding-block: 4px;
         font-size: 14px;
-        color: #333;
+
+        .browser-firefox & {
+          padding-inline: 0px;
+        }
+        .browser-chrome & {
+          padding-inline: 20px;
+        }
       }
 
       button {
@@ -140,7 +186,7 @@
         padding: 1.25em;
         padding-top: 0.25em;
         padding-bottom: 0.25em;
-        background-color: white;
+        /*background-color: white;*/
 
         display: flex;
         flex-direction: row;
@@ -171,10 +217,19 @@
         margin: 0;
         margin-right: 16px;
       }
+
       button > img {
         height: 1.2em;
         width: 1.2em;
         margin-right: 1em;
+      }
+
+      .reload {
+        &:hover,
+        &:focus {
+          background-color: var(--theme-popup_highlight);
+          color: var(--theme-popup_highlight_text);
+        }
       }
     </style>
   </head>
@@ -204,24 +259,31 @@
         <form>
           <label data-target="ask" title="Ask">
             <input type="radio" name="behaviour" value="ask" checked />
-            <img
-              src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
-            />
+            <div class="icon"></div>
             <span>Ask</span>
           </label>
           <label data-target="windowed" title="Windowed">
             <input type="radio" name="behaviour" value="windowed" />
-            <img src="../Images/Icon_Windowed@scalable.svg" />
+            <div
+              class="icon mask-icon"
+              data-dynamic-mask-image="../Images/Icon_Windowed_Mono@scalable.svg"
+            ></div>
             <span>Windowed</span>
           </label>
           <label data-target="in-window" title="In-window">
             <input type="radio" name="behaviour" value="in-window" />
-            <img src="../Images/Icon_InWindow_Mono@scalable.svg" />
+            <div
+              class="icon mask-icon"
+              data-dynamic-mask-image="../Images/Icon_InWindow_Mono@scalable.svg"
+            ></div>
             <span>In-window</span>
           </label>
           <label data-target="fullscreen" title="Fullscreen">
             <input type="radio" name="behaviour" value="fullscreen" />
-            <img src="../Images/Icon_EnterFullscreen@scalable.svg" />
+            <div
+              class="icon mask-icon"
+              data-dynamic-mask-image="../Images/Icon_EnterFullscreen@scalable.svg"
+            ></div>
             <span>Fullscreen</span>
           </label>
 
@@ -232,25 +294,32 @@
               title="Picture-in-Picture mode, only if supported by the page. This will overwrite the preference above (even ask)"
             >
               <input type="checkbox" name="picture_in_picture" />
-              <img src="../Images/Icon_PiP@scalable.svg" />
+              <!--<img src="../Images/Icon_PiP@scalable.svg" />-->
+              <div
+                style="
+                  background-color: currentColor;
+                  mask-image: url(&quot;../Images/Icon_PiP@scalable.svg&quot;);
+                "
+              ></div>
               <span>PiP (if possible)</span>
             </label>
           </hide-if-no-picture-in-picture>
-          
-          <hide-if-ask>
-            <p style="margin-top: 8px">
-            You can always use <kbd>Shift</kbd> to trigger the ask popup.
-            </p>
-          </hide-if-ask>
 
-          <button id="set-as-default" disabled style="margin-top: 16px">
+          <button id="set-as-default" disabled style="margin-top: 8px">
             <div>Set as default</div>
             <div>for all websites</div>
           </button>
+
+          <hide-if-ask>
+            <p style="margin-top: 8px">
+              You can always use <kbd>Shift</kbd> to trigger the ask popup.
+            </p>
+          </hide-if-ask>
         </form>
       </div>
     </div>
     <script src="../Javascript/browser-polyfill.min.js"></script>
     <script src="./Popup.js" type="module"></script>
+    <script src="./Theme-Colors.js" type="module"></script>
   </body>
 </html>

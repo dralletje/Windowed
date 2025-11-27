@@ -178,10 +178,31 @@ let get_fullscreen_select_element = (root = document) => {
 
 let Button = ({ icon, title, text, target }) => `
   <button data-target="${target}" title="${title}">
-    <img src="${icon}" alt="" />
+    <div class="icon mask-icon" style="mask-image: url(${icon})"></div>
     <span>${text}</span>
   </button>
 `;
+
+/**
+ * @param {import("webextension-polyfill").Manifest.ThemeColor} color
+ * @returns {string}
+ */
+let themecolor_to_string = (color) => {
+  if (typeof color === "string") {
+    return color;
+  } else if (Array.isArray(color)) {
+    if (color.length === 3) {
+      return `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+    } else if (color.length === 4) {
+      return `rgba(${color[0]}, ${color[1]}, ${color[2]}, ${color[3]})`;
+    } else {
+      // prettier-ignore
+      throw new Error(`Invalid theme color array: ${JSON.stringify(color)}`);
+    }
+  } else {
+    throw new Error(`Invalid theme color: ${color}`);
+  }
+};
 
 // Insert requestFullScreen mock
 const code_to_insert_in_page = on_webpage`{
@@ -337,6 +358,16 @@ const code_to_insert_in_page = on_webpage`{
 
     let popup_div = document.createElement("div");
     let shadowRoot = popup_div.attachShadow({ mode: "open" });
+
+    if (theme?.colors != undefined) {
+      let root = popup_div;
+      for (let [key, value] of Object.entries(theme.colors)) {
+        if (value != undefined) {
+          root.style.setProperty(`--theme-${key}`, themecolor_to_string(value));
+        }
+      }
+    }
+
     shadowRoot.appendChild(
       createElementFromHTML(`<style>${popup_css}</style>`),
     );
@@ -379,7 +410,9 @@ const code_to_insert_in_page = on_webpage`{
           }
           <li>
             ${Button({
-              icon: browser.runtime.getURL("Images/Icon_Windowed@scalable.svg"),
+              icon: browser.runtime.getURL(
+                "Images/Icon_Windowed_Mono@scalable.svg",
+              ),
               text: "Windowed",
               title: "Windowed (w)",
               target: "windowed",
@@ -438,7 +471,7 @@ const code_to_insert_in_page = on_webpage`{
                   ? `
                     <li>
                       <button data-target="picture-in-picture" title="Picture in picture (p)" class="flex flex-row">
-                        <img src="${browser.runtime.getURL("Images/Icon_PiP@scalable.svg")}" alt="" />
+                        <div class="icon mask-icon" style="mask-image: url(${browser.runtime.getURL("Images/Icon_PiP@scalable.svg")})"></div>
                         <span class="flex-1">PiP</span>
                         <kbd style="margin-left: 16px">p</kbd>
                       </button>
@@ -448,21 +481,21 @@ const code_to_insert_in_page = on_webpage`{
               }
               <li>
                 <button data-target="windowed" title="Windowed (w)" class="flex flex-row">
-                  <img src="${browser.runtime.getURL("Images/Icon_Windowed@scalable.svg")}" alt="" />
+                  <div class="icon mask-icon" style="mask-image: url(${browser.runtime.getURL("Images/Icon_Windowed_Mono@scalable.svg")})"></div>
                   <span class="flex-1">Windowed</span>
                   <kbd style="margin-left: 16px">w</kbd>
                 </button>
               </li>
               <li>
                 <button data-target="in-window" title="In-window (i)" class="flex flex-row">
-                  <img src="${browser.runtime.getURL("Images/Icon_InWindow_Mono@scalable.svg")}" alt="" />
+                  <div class="icon mask-icon" style="mask-image: url(${browser.runtime.getURL("Images/Icon_InWindow_Mono@scalable.svg")})"></div>
                   <span class="flex-1">In-window</span>
                   <kbd style="margin-left: 16px">i</kbd>
                 </button>
               </li>
               <li>
                 <button data-target="fullscreen" title="Fullscreen (f)" class="flex flex-row">
-                  <img src="${browser.runtime.getURL("Images/Icon_EnterFullscreen@scalable.svg")}" alt="" />
+                  <div class="icon mask-icon" style="mask-image: url(${browser.runtime.getURL("Images/Icon_EnterFullscreen@scalable.svg")})"></div>
                   <span class="flex-1">Fullscreen</span>
                   <kbd style="margin-left: 16px">f</kbd>
                 </button>
@@ -829,34 +862,44 @@ let popup_css = css`
     flex: 1;
   }
 
+  :host {
+    --theme-popup: #111;
+    --theme-popup_border: #555;
+    --theme-popup_text: white;
+    --theme-popup_highlight: rgba(255, 255, 255, 0.1);
+    --theme-popup_highlight_text: white;
+  }
+
   .popup {
-    background-color: white;
+    background-color: var(--theme-popup, white);
     border-radius: 3px;
     border: solid #eee 1px;
-    box-shadow: 0px 2px 4px #00000026;
+    border-color: var(--theme-popup_border, #eee);
+    /*box-shadow: 0px 2px 4px #00000026;*/
     padding-top: 5px;
     padding-bottom: 5px;
     font-size: 16px;
-    color: black;
+    color: var(--theme-popup_text, black);
     min-width: 150px;
-    z-index: ${max_z_index};
 
     display: flex;
     flex-direction: column;
     align-items: stretch;
 
     font-family: sans-serif;
+
+    z-index: ${max_z_index};
   }
 
   .popup:focus {
     outline: none;
   }
 
-  @media (prefers-color-scheme: dark) {
+  /*@media (prefers-color-scheme: dark) {
     .popup {
       filter: invert(0.9);
     }
-  }
+  }*/
 
   .popup [data-target] {
     text-align: inherit;
@@ -864,8 +907,11 @@ let popup_css = css`
     padding: 1.25em;
     padding-top: 0.25em;
     padding-bottom: 0.25em;
-    background-color: white;
-    color: black; /* Force black for if the page has color: white */
+    /*background-color: white;*/
+    /*background-color: var(--theme-popup, white);*/
+    background-color: transparent;
+    color: var(--theme-popup_text, #eee);
+    /* Force black for if the page has color: white */
 
     display: flex;
     flex-direction: row;
@@ -876,27 +922,42 @@ let popup_css = css`
     box-shadow: none;
 
     white-space: nowrap;
+
+    &:focus {
+      /*filter: brightness(0.95);*/
+      background-color: var(--theme-popup_highlight, white);
+      color: var(--theme-popup_highlight_text, black);
+    }
+    &:hover {
+      /*filter: brightness(0.9);*/
+      background-color: var(--theme-popup_highlight, white);
+      color: var(--theme-popup_highlight_text, black);
+    }
+    &:focus:not(:focus-visible) {
+      outline: none;
+    }
+
+    & > img {
+      height: 1.2em;
+      width: 1.2em;
+      margin-right: 1em;
+    }
+  }
+
+  .icon {
+    height: 1.2em;
+    width: 1.2em;
+    margin-right: 1em;
+  }
+  .mask-icon {
+    background-color: currentColor;
+    mask-size: contain;
   }
 
   [data-target]::-moz-focus-inner,
   .popup::-moz-focus-inner {
     border: 0;
     outline: 0;
-  }
-  [data-target]:focus {
-    filter: brightness(0.95);
-  }
-  [data-target]:focus:not(:focus-visible) {
-    outline: none;
-  }
-  [data-target]:hover {
-    filter: brightness(0.9);
-  }
-
-  [data-target] > img {
-    height: 1.2em;
-    width: 1.2em;
-    margin-right: 1em;
   }
 
   li {
@@ -1007,6 +1068,7 @@ const parent_elements = function* (element) {
  * @param {{ type: string, [key: string]: any }} message
  */
 let send_chrome_message = async (message) => {
+  // @ts-ignore
   let { type, value } = await browser.runtime.sendMessage(message);
   if (type === "resolve") {
     return value;
@@ -1108,14 +1170,6 @@ let createElementFromHTML = (htmlString) => {
   div.innerHTML = htmlString.trim();
 
   return div.firstChild;
-};
-
-let go_in_cool_pip = async () => {
-  let element = get_fullscreen_select_element();
-
-  // Open a Picture-in-Picture window.
-  await globalThis.documentPictureInPicture.requestWindow();
-  window.postMessage({ type: "WINDOWED-cool-pip" }, "*");
 };
 
 let go_in_window = async () => {
@@ -1440,4 +1494,11 @@ check_disabled_state();
 browser.runtime.onConnect.addListener(async (port) => {
   port.postMessage({ type: "I_exists_ping" });
   check_disabled_state();
+});
+
+let theme = null;
+send_chrome_message({
+  type: "get_theme",
+}).then((x) => {
+  theme = x;
 });

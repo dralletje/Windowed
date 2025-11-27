@@ -16,6 +16,23 @@ let show_html_for = (id) => {
   return to_show;
 };
 
+for (let element of document.querySelectorAll("[data-dynamic-mask-image]")) {
+  if (element instanceof HTMLElement) {
+    let mask_image_path = element.dataset.dynamicMaskImage;
+    let string = browser.runtime.getURL(mask_image_path);
+    element.style.setProperty("mask-image", `url(${string})`);
+  }
+}
+
+let browser_info = browser.runtime.getBrowserInfo
+  ? await browser.runtime.getBrowserInfo()
+  : await Promise.resolve({ name: "Chrome" });
+let is_firefox = browser_info.name === "Firefox";
+
+document.documentElement.classList.add(
+  is_firefox ? "browser-firefox" : "browser-chrome",
+);
+
 /**
  * Function that works with my Extension Messaging Wrapper for nice error handling
  * @param {any} message
@@ -177,12 +194,8 @@ let initialize_page = async () => {
       [host_pip]: picture_in_picture_input.checked,
     });
 
-    document.body.setAttribute("data-mode-selected", behaviour_input.value);
-    $set_as_default_button.disabled =
-      behaviour_input.value === config.all_mode &&
-      picture_in_picture_input.checked === config.all_pip;
-
-    await send_chrome_message({
+    initialize_page();
+    send_chrome_message({
       type: "update_windowed_button",
       id: tab.id,
     });
