@@ -2,10 +2,6 @@
   "name": "Windowed - floating Youtube/every website",
   "short_name": "Windowed",
   "description": "Changes fullscreen buttons to go into a popup. Works for every website that uses fullscreen, including Youtube, Vimeo, Netflix",
-  "developer": {
-    "name": "Michiel Dral",
-    "url": "https://dral.eu/"
-  },
   "version": "34",
   "manifest_version": 3,
   "browser_specific_settings": {
@@ -36,7 +32,6 @@
     }
   ],
   "background": {
-    "scripts": ["Background/BackgroundModule.js"],
     "service_worker": "Background/BackgroundModule.js",
     "type": "module"
   },
