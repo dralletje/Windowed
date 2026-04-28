@@ -92,6 +92,10 @@
 
   let make_tab_exit_fullscreen = external_function(4);
 
+  let ignore_inactive_document_error = (err) => {
+    return err instanceof TypeError && err.message.includes("Document not active");
+  }
+
   let exitFullscreen = async function(original) {
     let windowed_fullscreen = document.querySelector('[data-windowed_long_id_that_does_not_conflict_active], [data-windowed_long_id_that_does_not_conflict_shadowdom]');
 
@@ -112,7 +116,13 @@
 
       await make_tab_exit_fullscreen();
     } else {
-      original();
+      await Promise.resolve()
+        .then(() => original())
+        .catch((err) => {
+          if (!ignore_inactive_document_error(err)) {
+            throw err;
+          }
+        });
     }
   }
 
@@ -166,8 +176,8 @@
       return;
     }
 
-    document.body.focus();
-    element.focus();
+    document.body.focus({ preventScroll: true });
+    element.focus({ preventScroll: true });
     set_fullscreen_element(element || document.body);
     send_fullscreen_events();
   }

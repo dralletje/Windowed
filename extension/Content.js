@@ -616,6 +616,10 @@ const code_to_insert_in_page = on_webpage`{
     send_fullscreen_events();
   }}
 
+  let ignore_inactive_document_error = (err) => {
+    return err instanceof TypeError && err.message.includes("Document not active");
+  }
+
   let exitFullscreen = async function(original) {
     let windowed_fullscreen = document.querySelector('[data-${fullscreen_active}], [data-${shadowdom_trail}]');
 
@@ -636,7 +640,13 @@ const code_to_insert_in_page = on_webpage`{
 
       await make_tab_exit_fullscreen();
     } else {
-      original();
+      await Promise.resolve()
+        .then(() => original())
+        .catch((err) => {
+          if (!ignore_inactive_document_error(err)) {
+            throw err;
+          }
+        });
     }
   }
 
@@ -690,8 +700,8 @@ const code_to_insert_in_page = on_webpage`{
       return;
     }
 
-    document.body.focus();
-    element.focus();
+    document.body.focus({ preventScroll: true });
+    element.focus({ preventScroll: true });
     set_fullscreen_element(element || document.body);
     send_fullscreen_events();
   }
@@ -1095,6 +1105,7 @@ let is_shift_pressed = false;
 
 let last_popup = null;
 let is_in_fullscreen = false;
+let fullscreen_page_position = null;
 
 let clear_popup = () => {
   if (last_popup != null) {
@@ -1172,11 +1183,80 @@ let createElementFromHTML = (htmlString) => {
   return div.firstChild;
 };
 
+let remember_page_position = (element) => {
+  let rect = element.getBoundingClientRect();
+  fullscreen_page_position = {
+    x: window.scrollX,
+    y: window.scrollY,
+    rect_left: rect.left,
+    rect_top: rect.top,
+    element: element,
+  };
+};
+
+let restore_page_position = () => {
+  if (fullscreen_page_position == null) {
+    return;
+  }
+
+  let position = fullscreen_page_position;
+  fullscreen_page_position = null;
+
+  let scroll_back = () => {
+    let x = position.x;
+    let y = position.y;
+
+    if (position.element.isConnected) {
+      let rect = position.element.getBoundingClientRect();
+      x = window.scrollX + rect.left - position.rect_left;
+      y = window.scrollY + rect.top - position.rect_top;
+    }
+
+    window.scrollTo(x, y);
+  };
+  scroll_back();
+  requestAnimationFrame(() => {
+    scroll_back();
+    requestAnimationFrame(scroll_back);
+  });
+  setTimeout(scroll_back, 50);
+  setTimeout(scroll_back, 150);
+  setTimeout(scroll_back, 350);
+  setTimeout(scroll_back, 700);
+  setTimeout(scroll_back, 1200);
+};
+
+let get_video_elements = (element) => {
+  let videos = [];
+  if (element instanceof HTMLVideoElement) {
+    videos.push(element);
+  }
+  videos.push(...element.querySelectorAll("video"));
+  return videos;
+};
+
+let remember_playing_videos = (element) => {
+  return get_video_elements(element).filter(
+    (video) => !video.paused && !video.ended,
+  );
+};
+
+let restore_playing_videos = async (videos) => {
+  await delay(0);
+  for (let video of videos) {
+    if (video.paused && !video.ended) {
+      video.play().catch(() => {});
+    }
+  }
+};
+
 let go_in_window = async () => {
   create_style_rule();
 
   clear_listeners();
   let element = get_fullscreen_select_element();
+  remember_page_position(element);
+  let playing_videos = remember_playing_videos(element);
 
   let unlisten_to_escape = onEscapePress(() => {
     exit_fullscreen_on_page();
@@ -1208,11 +1288,14 @@ let go_in_window = async () => {
 
   // Add no scroll to the body and let everything kick in
   enable_selector(document.body, body_class);
+  restore_playing_videos(playing_videos);
 };
 
 let go_into_fullscreen = async () => {
   create_style_rule();
   let element = get_fullscreen_select_element();
+  remember_page_position(element);
+  let playing_videos = remember_playing_videos(element);
   let cloned = element.cloneNode(true);
 
   clear_listeners();
@@ -1298,6 +1381,7 @@ let go_into_fullscreen = async () => {
 
   // Add no scroll to the body and let everything kick in
   enable_selector(document.body, body_class);
+  restore_playing_videos(playing_videos);
   window.focus(); // idk
 };
 
@@ -1319,6 +1403,13 @@ let go_out_of_fullscreen = async () => {
     disable_selector(parent, shadowdom_trail);
   }
 
+  let cloned = document.querySelector(`[data-${fullscreen_element_cloned}]`);
+  if (cloned) {
+    document.body.removeChild(cloned);
+  }
+
+  restore_page_position();
+
   // If we are a frame, tell the parent frame to exit fullscreen
   // If we aren't (we are a popup), tell the background page to make me tab again
   if (window.parent !== window) {
@@ -1327,11 +1418,6 @@ let go_out_of_fullscreen = async () => {
     await delay(10);
     await send_chrome_message({ type: "please_make_me_a_tab_again" });
     await delay(500);
-  }
-
-  let cloned = document.querySelector(`[data-${fullscreen_element_cloned}]`);
-  if (cloned) {
-    document.body.removeChild(cloned);
   }
 };
 
@@ -1441,8 +1527,16 @@ let is_escape_locked = false;
 
 let onEscapePress = (fn) => {
   let escape_timeout = null;
+  let handled_events = new WeakSet();
   let escape_listener = (e) => {
-    if (!e.defaultPrevented && e.key === "Escape") {
+    if (handled_events.has(e)) {
+      return;
+    }
+
+    let is_escape =
+      e.key === "Escape" || e.key === "Esc" || e.code === "Escape";
+    if (is_escape && !e.repeat) {
+      handled_events.add(e);
       if (is_escape_locked) {
         escape_timeout = setTimeout(() => {
           fn();
@@ -1454,17 +1548,23 @@ let onEscapePress = (fn) => {
   };
 
   let escape_up_listener = (e) => {
-    if (!e.defaultPrevented && e.key === "Escape") {
+    let is_escape =
+      e.key === "Escape" || e.key === "Esc" || e.code === "Escape";
+    if (is_escape) {
       clearTimeout(escape_timeout);
     }
   };
 
-  window.addEventListener("keydown", escape_listener);
-  window.addEventListener("keyup", escape_up_listener);
+  window.addEventListener("keydown", escape_listener, { capture: true });
+  document.addEventListener("keydown", escape_listener, { capture: true });
+  window.addEventListener("keyup", escape_up_listener, { capture: true });
+  document.addEventListener("keyup", escape_up_listener, { capture: true });
 
   return () => {
-    window.removeEventListener("keydown", escape_listener);
-    window.removeEventListener("keyup", escape_up_listener);
+    window.removeEventListener("keydown", escape_listener, { capture: true });
+    document.removeEventListener("keydown", escape_listener, { capture: true });
+    window.removeEventListener("keyup", escape_up_listener, { capture: true });
+    document.removeEventListener("keyup", escape_up_listener, { capture: true });
   };
 };
 
