@@ -1540,12 +1540,611 @@ let onEscapePress = (fn) => {
   };
 };
 
+////////////////////////////////////////////////////////////////////////////////
+// A-B repeat
+//
+// Switched on per site from the popup. While it is on, a small panel floats
+// over the video with two points you can drag, A and B, and the video keeps
+// looping between them. Dragging a point shows its time and seeks the video
+// there, so you can pick the exact moment you meant.
+////////////////////////////////////////////////////////////////////////////////
+
+/** Never let the loop get so short there is no way out of it */
+const AB_MIN_LOOP = 0.5;
+/**
+ * A seek lands on the nearest keyframe, which can be a little before the time
+ * we asked for. Without some slack we'd keep seeking back to A forever.
+ */
+const AB_SEEK_SLACK = 0.5;
+/** How far above the bottom of the video the panel floats, clear of the page's own controls */
+const AB_PANEL_OFFSET = 56;
+/** Below this height the video is too small to float anything on top of */
+const AB_PANEL_MIN_VIDEO_HEIGHT = 160;
+/** Same cyan as the progress bar, so it reads as one thing */
+const AB_ACCENT_COLOR = "#00e5ff";
+
+let ab_repeat_enabled = false;
+/** @type {HTMLVideoElement} The video the panel is attached to */
+let ab_video = null;
+/** @type {{ [key: string]: any }} The panel, once it exists */
+let ab_ui = null;
+let ab_a = 0;
+let ab_b = 0;
+/** @type {"a" | "b"} Which point is being dragged right now, if any */
+let ab_dragging = null;
+let ab_animation_frame = null;
+
+/**
+ * @param {number} value
+ * @param {number} min
+ * @param {number} max
+ */
+let ab_clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
+/**
+ * @param {number} seconds
+ * @param {boolean} [precise] Tenths as well, for the loop points themselves
+ */
+let ab_format_time = (seconds, precise = false) => {
+  if (!isFinite(seconds) || seconds < 0) return precise ? "--:--.-" : "--:--";
+  let hours = Math.floor(seconds / 3600);
+  let minutes = Math.floor((seconds % 3600) / 60);
+  let rest = seconds % 60;
+  let whole = Math.floor(rest);
+  let tenths = Math.floor((rest - whole) * 10);
+  let seconds_text = `${String(whole).padStart(2, "0")}${precise ? `.${tenths}` : ""}`;
+  return hours > 0
+    ? `${hours}:${String(minutes).padStart(2, "0")}:${seconds_text}`
+    : `${minutes}:${seconds_text}`;
+};
+
+let ab_panel_css = css`
+  :host {
+    all: initial;
+    position: fixed;
+    z-index: ${max_z_index};
+    display: none;
+    font-family: system-ui, sans-serif;
+    font-size: 12px;
+    line-height: 1;
+    color: white;
+  }
+
+  .panel {
+    box-sizing: border-box;
+    padding: 14px 14px 10px;
+    border-radius: 10px;
+    background-color: rgba(17, 17, 17, 0.88);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.45);
+    user-select: none;
+  }
+
+  .track {
+    position: relative;
+    height: 18px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    touch-action: none;
+  }
+  /* The full length of the video */
+  .track::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 7px;
+    height: 4px;
+    border-radius: 2px;
+    background-color: rgba(255, 255, 255, 0.25);
+  }
+  /* The part that actually repeats */
+  .range {
+    position: absolute;
+    top: 7px;
+    height: 4px;
+    border-radius: 2px;
+    background-color: ${AB_ACCENT_COLOR};
+  }
+  .playhead {
+    position: absolute;
+    top: 2px;
+    height: 14px;
+    width: 2px;
+    margin-left: -1px;
+    border-radius: 1px;
+    background-color: white;
+  }
+
+  .handle {
+    position: absolute;
+    top: 1px;
+    height: 16px;
+    width: 16px;
+    margin-left: -8px;
+    box-sizing: border-box;
+    border: solid 2px #111;
+    border-radius: 50%;
+    background-color: ${AB_ACCENT_COLOR};
+    color: #111;
+    font-size: 9px;
+    font-weight: bold;
+    text-align: center;
+    cursor: grab;
+    touch-action: none;
+  }
+  .handle::after {
+    content: attr(data-letter);
+    line-height: 12px;
+  }
+  .handle:focus-visible {
+    outline: solid 2px white;
+    outline-offset: 1px;
+  }
+  .handle.dragging {
+    cursor: grabbing;
+  }
+
+  /* The time of a point, right where you are dragging it */
+  .bubble {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 3px 5px;
+    border-radius: 4px;
+    background-color: #111;
+    color: white;
+    font-weight: normal;
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.1s;
+    pointer-events: none;
+  }
+  .handle:hover .bubble,
+  .handle:focus .bubble,
+  .handle.dragging .bubble {
+    opacity: 1;
+  }
+
+  .row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+  }
+  .spacer {
+    flex: 1;
+  }
+
+  button {
+    all: unset;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 7px;
+    border-radius: 6px;
+    background-color: rgba(255, 255, 255, 0.12);
+    color: white;
+    font-family: inherit;
+    font-size: 12px;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  button:hover {
+    background-color: rgba(255, 255, 255, 0.25);
+  }
+  button:focus-visible {
+    outline: solid 2px white;
+  }
+  button b {
+    color: ${AB_ACCENT_COLOR};
+    margin-right: 4px;
+  }
+`;
+
+let ab_panel_html = html`
+  <div class="panel">
+    <div class="track">
+      <div class="range"></div>
+      <div class="playhead"></div>
+      <div
+        class="handle handle-a"
+        data-letter="A"
+        tabindex="0"
+        role="slider"
+        aria-label="Start of the repeat"
+      >
+        <span class="bubble bubble-a"></span>
+      </div>
+      <div
+        class="handle handle-b"
+        data-letter="B"
+        tabindex="0"
+        role="slider"
+        aria-label="End of the repeat"
+      >
+        <span class="bubble bubble-b"></span>
+      </div>
+    </div>
+    <div class="row">
+      <button class="set-a" title="Repeat from where the video is now">
+        <b>A</b><span class="time-a"></span>
+      </button>
+      <button class="set-b" title="Repeat until where the video is now">
+        <b>B</b><span class="time-b"></span>
+      </button>
+      <span class="spacer"></span>
+      <button class="reset" title="Back to the whole video">&#8635;</button>
+      <button class="close" title="Turn A-B repeat off">&#10005;</button>
+    </div>
+  </div>
+`;
+
+let render_ab_points = () => {
+  if (ab_ui == null || ab_video == null) return;
+  let duration = ab_video.duration;
+  if (!isFinite(duration) || duration <= 0) return;
+
+  let a_text = ab_format_time(ab_a, true);
+  let b_text = ab_format_time(ab_b, true);
+
+  ab_ui.handle_a.style.left = `${(ab_a / duration) * 100}%`;
+  ab_ui.handle_b.style.left = `${(ab_b / duration) * 100}%`;
+  ab_ui.range.style.left = `${(ab_a / duration) * 100}%`;
+  ab_ui.range.style.width = `${((ab_b - ab_a) / duration) * 100}%`;
+
+  ab_ui.time_a.textContent = a_text;
+  ab_ui.time_b.textContent = b_text;
+  ab_ui.bubble_a.textContent = a_text;
+  ab_ui.bubble_b.textContent = b_text;
+  ab_ui.handle_a.setAttribute("aria-valuetext", a_text);
+  ab_ui.handle_b.setAttribute("aria-valuetext", b_text);
+};
+
+/**
+ * Move one of the points, keeping A and B at least `AB_MIN_LOOP` apart
+ * @param {"a" | "b"} which
+ * @param {number} time
+ * @param {boolean} [seek] Move the video there as well, to show what you picked
+ */
+let set_ab_point = (which, time, seek = false) => {
+  if (ab_video == null) return;
+  let duration = ab_video.duration;
+  if (!isFinite(duration) || duration <= 0) return;
+
+  if (which === "a") {
+    ab_a = ab_clamp(time, 0, Math.max(0, ab_b - AB_MIN_LOOP));
+  } else {
+    ab_b = ab_clamp(time, Math.min(ab_a + AB_MIN_LOOP, duration), duration);
+  }
+
+  render_ab_points();
+  if (seek) {
+    ab_video.currentTime = which === "a" ? ab_a : ab_b;
+  }
+};
+
+let reset_ab_points = () => {
+  if (ab_video == null) return;
+  ab_a = 0;
+  ab_b = isFinite(ab_video.duration) ? ab_video.duration : 0;
+  render_ab_points();
+};
+
+/** Keep the panel on top of the video, wherever the page decides to put it */
+let position_ab_panel = () => {
+  if (ab_ui == null || ab_video == null) return;
+  let rect = ab_video.getBoundingClientRect();
+
+  let is_in_view =
+    rect.width > 0 &&
+    rect.height > 0 &&
+    rect.bottom > 0 &&
+    rect.right > 0 &&
+    rect.top < window.innerHeight &&
+    rect.left < window.innerWidth;
+  ab_ui.host.style.display = is_in_view ? "block" : "none";
+  if (!is_in_view) return;
+
+  let width = ab_clamp(rect.width - 32, 220, 420);
+  let left = ab_clamp(
+    rect.left + (rect.width - width) / 2,
+    4,
+    Math.max(4, window.innerWidth - width - 4),
+  );
+
+  ab_ui.host.style.width = `${Math.round(width)}px`;
+  ab_ui.host.style.left = `${Math.round(left)}px`;
+
+  if (rect.height >= AB_PANEL_MIN_VIDEO_HEIGHT) {
+    // Floating inside the video, above whatever controls the page keeps there
+    let bottom = window.innerHeight - rect.bottom + AB_PANEL_OFFSET;
+    ab_ui.host.style.top = "auto";
+    ab_ui.host.style.bottom = `${Math.round(ab_clamp(bottom, 8, Math.max(8, window.innerHeight - 80)))}px`;
+  } else {
+    // Too small to cover up, so hang underneath it instead
+    ab_ui.host.style.bottom = "auto";
+    ab_ui.host.style.top = `${Math.round(ab_clamp(rect.bottom + 8, 8, Math.max(8, window.innerHeight - 80)))}px`;
+  }
+};
+
+/** The whole point: jump back to A whenever the video runs past B */
+let enforce_ab_loop = () => {
+  if (ab_video == null || ab_dragging != null) return;
+  if (ab_video.paused || ab_video.seeking) return;
+  let time = ab_video.currentTime;
+  if (time >= ab_b || time < ab_a - AB_SEEK_SLACK) {
+    ab_video.currentTime = ab_a;
+  }
+};
+
+let ab_tick = () => {
+  ab_animation_frame = null;
+  if (!ab_repeat_enabled || ab_video == null || ab_ui == null) return;
+
+  // Pages throw their video element away without telling anyone
+  if (!ab_video.isConnected) {
+    attach_ab_video(find_ab_video());
+    return;
+  }
+
+  position_ab_panel();
+  enforce_ab_loop();
+
+  let duration = ab_video.duration;
+  if (isFinite(duration) && duration > 0) {
+    let played = (ab_video.currentTime / duration) * 100;
+    ab_ui.playhead.style.left = `${ab_clamp(played, 0, 100)}%`;
+  }
+
+  ab_animation_frame = requestAnimationFrame(ab_tick);
+};
+
+let start_ab_ticking = () => {
+  if (ab_animation_frame == null) {
+    ab_animation_frame = requestAnimationFrame(ab_tick);
+  }
+};
+
+/**
+ * Native fullscreen only paints what is inside the fullscreen element,
+ * so the panel has to move in there along with it
+ */
+let reparent_ab_panel = () => {
+  if (ab_ui == null) return;
+  let fullscreen_element = fullscreenelement_aliasses
+    .map((alias) => document[alias])
+    .find((element) => element != null);
+  let parent =
+    fullscreen_element instanceof HTMLElement &&
+    !(fullscreen_element instanceof HTMLVideoElement)
+      ? fullscreen_element
+      : (document.body ?? document.documentElement);
+
+  if (ab_ui.host.parentElement !== parent) {
+    parent.appendChild(ab_ui.host);
+  }
+};
+
+let create_ab_panel = () => {
+  if (ab_ui != null) return;
+
+  let host = document.createElement("windowed-ab-repeat");
+  let shadow = host.attachShadow({ mode: "open" });
+  shadow.innerHTML = `<style>${ab_panel_css}</style>${ab_panel_html}`;
+
+  ab_ui = {
+    host: host,
+    track: shadow.querySelector(".track"),
+    range: shadow.querySelector(".range"),
+    playhead: shadow.querySelector(".playhead"),
+    handle_a: shadow.querySelector(".handle-a"),
+    handle_b: shadow.querySelector(".handle-b"),
+    bubble_a: shadow.querySelector(".bubble-a"),
+    bubble_b: shadow.querySelector(".bubble-b"),
+    time_a: shadow.querySelector(".time-a"),
+    time_b: shadow.querySelector(".time-b"),
+  };
+
+  /** @param {PointerEvent} event */
+  let time_at_pointer = (event) => {
+    let rect = ab_ui.track.getBoundingClientRect();
+    let ratio = rect.width === 0 ? 0 : (event.clientX - rect.left) / rect.width;
+    return ab_clamp(ratio, 0, 1) * (ab_video == null ? 0 : ab_video.duration);
+  };
+
+  for (let which of ["a", "b"]) {
+    let handle = which === "a" ? ab_ui.handle_a : ab_ui.handle_b;
+
+    handle.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      ab_dragging = which;
+      handle.classList.add("dragging");
+      handle.setPointerCapture(event.pointerId);
+    });
+    handle.addEventListener("pointermove", (event) => {
+      if (ab_dragging !== which) return;
+      set_ab_point(which, time_at_pointer(event), true);
+    });
+    let stop_dragging = () => {
+      if (ab_dragging !== which) return;
+      ab_dragging = null;
+      handle.classList.remove("dragging");
+    };
+    handle.addEventListener("pointerup", stop_dragging);
+    handle.addEventListener("pointercancel", stop_dragging);
+
+    // For picking a point down to the tenth of a second
+    handle.addEventListener("keydown", (event) => {
+      let step = event.shiftKey ? 1 : 0.1;
+      let from = which === "a" ? ab_a : ab_b;
+      if (event.key === "ArrowLeft") {
+        set_ab_point(which, from - step, true);
+      } else if (event.key === "ArrowRight") {
+        set_ab_point(which, from + step, true);
+      } else {
+        return;
+      }
+      event.preventDefault();
+    });
+  }
+
+  // Clicking the track itself moves whichever point is closest
+  ab_ui.track.addEventListener("pointerdown", (event) => {
+    if (event.target !== ab_ui.track && event.target !== ab_ui.range) return;
+    let time = time_at_pointer(event);
+    set_ab_point(
+      Math.abs(time - ab_a) <= Math.abs(time - ab_b) ? "a" : "b",
+      time,
+      true,
+    );
+  });
+
+  shadow.querySelector(".set-a").addEventListener("click", () => {
+    if (ab_video != null) set_ab_point("a", ab_video.currentTime);
+  });
+  shadow.querySelector(".set-b").addEventListener("click", () => {
+    if (ab_video != null) set_ab_point("b", ab_video.currentTime);
+  });
+  shadow.querySelector(".reset").addEventListener("click", () => {
+    reset_ab_points();
+  });
+  shadow.querySelector(".close").addEventListener("click", () => {
+    set_ab_repeat_enabled(false);
+    // Untick the checkbox as well, so the popup can turn it back on
+    send_chrome_message({ type: "set_ab_repeat", value: false }).catch((err) => {
+      // prettier-ignore
+      console.warn(`[Windowed] Error while turning A-B repeat off`, err);
+    });
+  });
+
+  reparent_ab_panel();
+};
+
+/** Playing to the very end never "runs past B", so pick it up here instead */
+let ab_on_video_ended = () => {
+  if (ab_video == null || ab_dragging != null) return;
+  ab_video.currentTime = ab_a;
+  ab_video.play().catch(() => {});
+};
+
+/** A new video in the same element: the old points mean nothing now */
+let ab_on_loaded_metadata = () => {
+  reset_ab_points();
+};
+
+/**
+ * Streams refine their duration while they play, which is no reason to throw
+ * away the points you picked: keep them, just don't let B run off the end.
+ */
+let ab_on_duration_change = () => {
+  if (ab_video == null) return;
+  let duration = ab_video.duration;
+  if (!isFinite(duration) || duration <= 0) return;
+  ab_b = Math.min(ab_b, duration);
+  ab_a = Math.min(ab_a, Math.max(0, ab_b - AB_MIN_LOOP));
+  render_ab_points();
+};
+
+/** @param {HTMLVideoElement} video */
+let is_usable_ab_video = (video) =>
+  video instanceof HTMLVideoElement &&
+  isFinite(video.duration) &&
+  video.duration > 1;
+
+/** The biggest video on the page is nearly always the one you are watching */
+let find_ab_video = () => {
+  let found = null;
+  let biggest = 0;
+  for (let video of document.querySelectorAll("video")) {
+    if (!is_usable_ab_video(video)) continue;
+    let rect = video.getBoundingClientRect();
+    let size = rect.width * rect.height;
+    if (size > biggest) {
+      found = video;
+      biggest = size;
+    }
+  }
+  return found;
+};
+
+/** @param {HTMLVideoElement} video */
+let attach_ab_video = (video) => {
+  if (video === ab_video) return;
+
+  if (ab_video != null) {
+    ab_video.removeEventListener("timeupdate", enforce_ab_loop);
+    ab_video.removeEventListener("ended", ab_on_video_ended);
+    ab_video.removeEventListener("loadedmetadata", ab_on_loaded_metadata);
+    ab_video.removeEventListener("durationchange", ab_on_duration_change);
+  }
+
+  ab_video = video;
+  if (ab_video == null) {
+    if (ab_ui != null) ab_ui.host.style.display = "none";
+    return;
+  }
+
+  // `timeupdate` only fires a few times a second, but unlike animation frames
+  // it keeps firing while the tab is in the background
+  ab_video.addEventListener("timeupdate", enforce_ab_loop);
+  ab_video.addEventListener("ended", ab_on_video_ended);
+  ab_video.addEventListener("loadedmetadata", ab_on_loaded_metadata);
+  ab_video.addEventListener("durationchange", ab_on_duration_change);
+
+  create_ab_panel();
+  reparent_ab_panel();
+  reset_ab_points();
+  position_ab_panel();
+  start_ab_ticking();
+};
+
+/** @param {Event} event */
+let ab_on_media_event = (event) => {
+  let video = /** @type {HTMLVideoElement} */ (event.target);
+  if (!is_usable_ab_video(video)) return;
+  // Whatever you just started playing is what you mean to repeat
+  if (event.type === "play" || ab_video == null || !ab_video.isConnected) {
+    attach_ab_video(video);
+  }
+};
+
+/** @param {boolean} enabled */
+let set_ab_repeat_enabled = (enabled) => {
+  if (enabled === ab_repeat_enabled) return;
+  ab_repeat_enabled = enabled;
+
+  if (enabled) {
+    // Neither of these bubbles, so we catch them on the way down instead
+    document.addEventListener("play", ab_on_media_event, true);
+    document.addEventListener("loadedmetadata", ab_on_media_event, true);
+    for (let alias of fullscreenchange_aliasses) {
+      document.addEventListener(alias, reparent_ab_panel);
+    }
+    attach_ab_video(find_ab_video());
+  } else {
+    document.removeEventListener("play", ab_on_media_event, true);
+    document.removeEventListener("loadedmetadata", ab_on_media_event, true);
+    for (let alias of fullscreenchange_aliasses) {
+      document.removeEventListener(alias, reparent_ab_panel);
+    }
+    attach_ab_video(null);
+    if (ab_animation_frame != null) cancelAnimationFrame(ab_animation_frame);
+    ab_animation_frame = null;
+    if (ab_ui != null) {
+      ab_ui.host.remove();
+      ab_ui = null;
+    }
+  }
+};
+
 let current_mode = { mode: "ask", pip: false };
 
 let check_disabled_state = async () => {
   try {
-    let { mode, pip } = await get_host_config_local();
+    let { mode, pip, ab_repeat } = await get_host_config_local();
     current_mode = { mode, pip };
+    set_ab_repeat_enabled(ab_repeat === true);
     window.postMessage(
       {
         type: "WINDOWED-notify",

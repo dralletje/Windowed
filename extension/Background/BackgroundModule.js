@@ -113,33 +113,41 @@ let clean_mode = (mode, disabled) => {
 
 let ALL_MODE = "mode(*)";
 let ALL_PIP = "pip(*)";
+let ALL_AB_REPEAT = "ab_repeat(*)";
 
 /** @param {import("webextension-polyfill").Tabs.Tab} tab */
 let get_host_config = async (tab) => {
   let host = new URL(tab.url).host;
   let host_mode = `mode(${host})`;
   let host_pip = `pip(${host})`;
+  let host_ab_repeat = `ab_repeat(${host})`;
   let {
     [host_mode]: mode,
     [host]: disabled,
     [host_pip]: pip,
+    [host_ab_repeat]: ab_repeat,
     [ALL_MODE]: all_mode,
     [ALL_PIP]: all_pip,
+    [ALL_AB_REPEAT]: all_ab_repeat,
   } = /** @type {any} */ (
     await browser.storage.sync.get([
       host_mode,
       host,
       host_pip,
+      host_ab_repeat,
       ALL_MODE,
       ALL_PIP,
+      ALL_AB_REPEAT,
     ])
   ) ?? {};
 
   return {
     mode: clean_mode(mode ?? all_mode, disabled),
     pip: (pip ?? all_pip) === true,
+    ab_repeat: (ab_repeat ?? all_ab_repeat) === true,
     all_mode: clean_mode(all_mode, false),
     all_pip: all_pip === true,
+    all_ab_repeat: all_ab_repeat === true,
   };
 };
 
@@ -180,6 +188,14 @@ onMessage("update_windowed_button", async (message, sender) => {
 
 onMessage("get_windowed_config", async (message, sender) => {
   return await get_host_config(sender.tab);
+});
+
+/** The panel on the video can turn A-B repeat off by itself */
+onMessage("set_ab_repeat", async (message, sender) => {
+  let host = new URL(sender.tab.url).host;
+  await browser.storage.sync.set({
+    [`ab_repeat(${host})`]: message.value === true,
+  });
 });
 
 onMessage("get_theme", async (message, sender) => {

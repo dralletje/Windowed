@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="128px" height="128px" viewBox="0 0 128 128" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>Icon_ABRepeat@scalable</title>
+    <g id="Icon_ABRepeat" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <path d="M24,86 L24,44 L92,44" id="Path-Top" stroke="#000000" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"></path>
+        <polygon id="Arrow-Right" fill="#000000" points="88 24 120 44 88 64"></polygon>
+        <path d="M104,42 L104,84 L36,84" id="Path-Bottom" stroke="#000000" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"></path>
+        <polygon id="Arrow-Left" fill="#000000" points="40 64 8 84 40 104"></polygon>
+    </g>
+</svg>

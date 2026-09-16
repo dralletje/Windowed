@@ -55,6 +55,7 @@ let send_chrome_message = async (message) => {
 
 let ALL_MODE = "mode(*)";
 let ALL_PIP = "pip(*)";
+let ALL_AB_REPEAT = "ab_repeat(*)";
 
 /**
  * @param {string} mode
@@ -73,25 +74,32 @@ let get_host_config = async (tab) => {
   let host = new URL(tab.url).host;
   let host_mode = `mode(${host})`;
   let host_pip = `pip(${host})`;
+  let host_ab_repeat = `ab_repeat(${host})`;
   let {
     [host_mode]: mode,
     [host]: disabled,
     [host_pip]: pip,
+    [host_ab_repeat]: ab_repeat,
     [ALL_MODE]: all_mode,
     [ALL_PIP]: all_pip,
+    [ALL_AB_REPEAT]: all_ab_repeat,
   } = await browser.storage.sync.get([
     host_mode,
     host,
     host_pip,
+    host_ab_repeat,
     ALL_MODE,
     ALL_PIP,
+    ALL_AB_REPEAT,
   ]);
 
   return {
     mode: clean_mode(mode ?? all_mode, disabled),
     pip: (pip ?? all_pip) === true,
+    ab_repeat: (ab_repeat ?? all_ab_repeat) === true,
     all_mode: clean_mode(all_mode, false),
     all_pip: all_pip === true,
+    all_ab_repeat: all_ab_repeat === true,
   };
 };
 
@@ -168,6 +176,7 @@ let initialize_page = async () => {
   let host = new URL(tab.url).host;
   let host_mode = `mode(${host})`;
   let host_pip = `pip(${host})`;
+  let host_ab_repeat = `ab_repeat(${host})`;
   for (let element of document.querySelectorAll("[data-placeholder=domain]")) {
     element.textContent = host;
   }
@@ -180,18 +189,22 @@ let initialize_page = async () => {
   let behaviour_input = $form.elements.behaviour;
   // @ts-ignore
   let picture_in_picture_input = $form.elements.picture_in_picture;
+  // @ts-ignore
+  let ab_repeat_input = $form.elements.ab_repeat;
 
   let config = await get_host_config(tab);
 
   document.body.setAttribute("data-mode-selected", config.mode);
   $set_as_default_button.disabled =
     behaviour_input.value === config.all_mode &&
-    picture_in_picture_input.checked === config.all_pip;
+    picture_in_picture_input.checked === config.all_pip &&
+    ab_repeat_input.checked === config.all_ab_repeat;
 
   $form.addEventListener("input", async (e) => {
     await browser.storage.sync.set({
       [host_mode]: behaviour_input.value,
       [host_pip]: picture_in_picture_input.checked,
+      [host_ab_repeat]: ab_repeat_input.checked,
     });
 
     initialize_page();
@@ -205,6 +218,7 @@ let initialize_page = async () => {
     await browser.storage.sync.set({
       [ALL_MODE]: behaviour_input.value,
       [ALL_PIP]: picture_in_picture_input.checked,
+      [ALL_AB_REPEAT]: ab_repeat_input.checked,
     });
     config = await get_host_config(tab);
     await send_chrome_message({
@@ -215,6 +229,7 @@ let initialize_page = async () => {
 
   behaviour_input.value = config.mode;
   picture_in_picture_input.checked = config.pip;
+  ab_repeat_input.checked = config.ab_repeat;
 };
 
 run(initialize_page);
