@@ -1543,10 +1543,14 @@ let onEscapePress = (fn) => {
 ////////////////////////////////////////////////////////////////////////////////
 // A-B repeat
 //
-// Switched on per site from the popup. While it is on, a small panel floats
-// over the video with two points you can drag, A and B, and the video keeps
-// looping between them. Dragging a point shows its time and seeks the video
-// there, so you can pick the exact moment you meant.
+// Switched on per site from the popup. A and B go straight into the page's own
+// progress bar, so they hide along with the rest of the controls and there is
+// nothing floating over the video. Drag one and it shows its time and seeks
+// there, so you can pick the exact moment you meant, and the video then keeps
+// looping between the two.
+//
+// Players we can't find a progress bar in fall back to a small panel over the
+// video, otherwise A-B repeat would do nothing at all there.
 ////////////////////////////////////////////////////////////////////////////////
 
 /** Never let the loop get so short there is no way out of it */
@@ -1556,23 +1560,38 @@ const AB_MIN_LOOP = 0.5;
  * we asked for. Without some slack we'd keep seeking back to A forever.
  */
 const AB_SEEK_SLACK = 0.5;
-/** How far above the bottom of the video the panel floats, clear of the page's own controls */
+/** How far above the bottom of the video the fallback panel floats */
 const AB_PANEL_OFFSET = 56;
 /** Below this height the video is too small to float anything on top of */
 const AB_PANEL_MIN_VIDEO_HEIGHT = 160;
 /** Same cyan as the progress bar, so it reads as one thing */
 const AB_ACCENT_COLOR = "#00e5ff";
+/** Roughly every half second, look again for a progress bar to move into */
+const AB_RELOOK_EVERY_FRAMES = 30;
+/**
+ * In order: Youtube's classic player, the newer one (`ytPlayerProgressBarProgressBar`
+ * and friends), the newer one again when the video has chapters, and finally
+ * anything at all that says it is a timeline. Matching on the shape of the name
+ * rather than the whole of it, because these get shuffled around.
+ */
+const AB_PROGRESS_BAR_SELECTORS = [
+  ".ytp-progress-bar",
+  "[class*='ProgressBarProgressBar']",
+  "[class*='ProgressBarChapteredPlayerBar']",
+  "[role='slider'][aria-valuemax]",
+];
 
 let ab_repeat_enabled = false;
-/** @type {HTMLVideoElement} The video the panel is attached to */
+/** @type {HTMLVideoElement} The video the points belong to */
 let ab_video = null;
-/** @type {{ [key: string]: any }} The panel, once it exists */
+/** @type {{ [key: string]: any }} Whatever we put on the page, once it exists */
 let ab_ui = null;
 let ab_a = 0;
 let ab_b = 0;
 /** @type {"a" | "b"} Which point is being dragged right now, if any */
 let ab_dragging = null;
 let ab_animation_frame = null;
+let ab_frames_since_relook = 0;
 
 /**
  * @param {number} value
@@ -1598,18 +1617,82 @@ let ab_format_time = (seconds, precise = false) => {
     : `${minutes}:${seconds_text}`;
 };
 
-let ab_panel_css = css`
+let ab_ui_css = css`
   :host {
     all: initial;
-    position: fixed;
-    z-index: ${max_z_index};
-    display: none;
+    display: block;
     font-family: system-ui, sans-serif;
     font-size: 12px;
     line-height: 1;
     color: white;
   }
 
+  /* Sitting in the page's own progress bar: a zero height line across it,
+     with only the two points sticking out */
+  :host(.in-bar) {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 0;
+    overflow: visible;
+    pointer-events: none;
+    z-index: 100;
+  }
+  :host(.in-bar) .track {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 0;
+  }
+  :host(.in-bar) .handle {
+    top: -7px;
+    height: 14px;
+    width: 3px;
+    margin-left: -1.5px;
+    border-radius: 1px;
+    border: none;
+    background-color: ${AB_ACCENT_COLOR};
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.7);
+    pointer-events: auto;
+    cursor: ew-resize;
+  }
+  /* 3px is nothing to aim at, so reach out a little further than we show */
+  :host(.in-bar) .handle::before {
+    content: "";
+    position: absolute;
+    top: -5px;
+    bottom: -5px;
+    left: -6px;
+    right: -6px;
+  }
+  :host(.in-bar) .handle::after {
+    content: none;
+  }
+  :host(.in-bar) .range {
+    top: -4px;
+    height: 8px;
+    border-radius: 1px;
+    background-color: rgba(255, 255, 255, 0.35);
+  }
+  /* The whole video is the loop until you move something: nothing to shade */
+  :host(.in-bar.full-range) .range {
+    display: none;
+  }
+  :host(.in-bar) .playhead {
+    display: none;
+  }
+  :host(.in-bar) .bubble {
+    bottom: 14px;
+  }
+
+  /* The fallback, floating over the bottom of the video */
+  :host(.floating) {
+    position: fixed;
+    z-index: ${max_z_index};
+    display: none;
+  }
   .panel {
     box-sizing: border-box;
     padding: 14px 14px 10px;
@@ -1618,8 +1701,7 @@ let ab_panel_css = css`
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.45);
     user-select: none;
   }
-
-  .track {
+  :host(.floating) .track {
     position: relative;
     height: 18px;
     margin-bottom: 10px;
@@ -1627,7 +1709,7 @@ let ab_panel_css = css`
     touch-action: none;
   }
   /* The full length of the video */
-  .track::before {
+  :host(.floating) .track::before {
     content: "";
     position: absolute;
     left: 0;
@@ -1637,13 +1719,33 @@ let ab_panel_css = css`
     border-radius: 2px;
     background-color: rgba(255, 255, 255, 0.25);
   }
-  /* The part that actually repeats */
-  .range {
-    position: absolute;
+  :host(.floating) .range {
     top: 7px;
     height: 4px;
     border-radius: 2px;
     background-color: ${AB_ACCENT_COLOR};
+  }
+  :host(.floating) .handle {
+    top: 1px;
+    height: 16px;
+    width: 16px;
+    margin-left: -8px;
+    border: solid 2px #111;
+    border-radius: 50%;
+    background-color: ${AB_ACCENT_COLOR};
+    color: #111;
+    font-size: 9px;
+    font-weight: bold;
+    text-align: center;
+    cursor: grab;
+  }
+  :host(.floating) .handle::after {
+    content: attr(data-letter);
+    line-height: 12px;
+  }
+
+  .range {
+    position: absolute;
   }
   .playhead {
     position: absolute;
@@ -1654,34 +1756,14 @@ let ab_panel_css = css`
     border-radius: 1px;
     background-color: white;
   }
-
   .handle {
     position: absolute;
-    top: 1px;
-    height: 16px;
-    width: 16px;
-    margin-left: -8px;
     box-sizing: border-box;
-    border: solid 2px #111;
-    border-radius: 50%;
-    background-color: ${AB_ACCENT_COLOR};
-    color: #111;
-    font-size: 9px;
-    font-weight: bold;
-    text-align: center;
-    cursor: grab;
     touch-action: none;
-  }
-  .handle::after {
-    content: attr(data-letter);
-    line-height: 12px;
   }
   .handle:focus-visible {
     outline: solid 2px white;
     outline-offset: 1px;
-  }
-  .handle.dragging {
-    cursor: grabbing;
   }
 
   /* The time of a point, right where you are dragging it */
@@ -1742,30 +1824,35 @@ let ab_panel_css = css`
   }
 `;
 
+/** The two points, the same markup wherever they end up */
+let ab_track_html = html`
+  <div class="track">
+    <div class="range"></div>
+    <div class="playhead"></div>
+    <div
+      class="handle handle-a"
+      data-letter="A"
+      tabindex="0"
+      role="slider"
+      aria-label="Start of the repeat"
+    >
+      <span class="bubble bubble-a"></span>
+    </div>
+    <div
+      class="handle handle-b"
+      data-letter="B"
+      tabindex="0"
+      role="slider"
+      aria-label="End of the repeat"
+    >
+      <span class="bubble bubble-b"></span>
+    </div>
+  </div>
+`;
+
 let ab_panel_html = html`
   <div class="panel">
-    <div class="track">
-      <div class="range"></div>
-      <div class="playhead"></div>
-      <div
-        class="handle handle-a"
-        data-letter="A"
-        tabindex="0"
-        role="slider"
-        aria-label="Start of the repeat"
-      >
-        <span class="bubble bubble-a"></span>
-      </div>
-      <div
-        class="handle handle-b"
-        data-letter="B"
-        tabindex="0"
-        role="slider"
-        aria-label="End of the repeat"
-      >
-        <span class="bubble bubble-b"></span>
-      </div>
-    </div>
+    ${ab_track_html}
     <div class="row">
       <button class="set-a" title="Repeat from where the video is now">
         <b>A</b><span class="time-a"></span>
@@ -1792,13 +1879,17 @@ let render_ab_points = () => {
   ab_ui.handle_b.style.left = `${(ab_b / duration) * 100}%`;
   ab_ui.range.style.left = `${(ab_a / duration) * 100}%`;
   ab_ui.range.style.width = `${((ab_b - ab_a) / duration) * 100}%`;
+  ab_ui.host.classList.toggle(
+    "full-range",
+    ab_a <= 0.01 && ab_b >= duration - 0.01,
+  );
 
-  ab_ui.time_a.textContent = a_text;
-  ab_ui.time_b.textContent = b_text;
-  ab_ui.bubble_a.textContent = a_text;
-  ab_ui.bubble_b.textContent = b_text;
+  ab_ui.bubble_a.textContent = `A ${a_text}`;
+  ab_ui.bubble_b.textContent = `B ${b_text}`;
   ab_ui.handle_a.setAttribute("aria-valuetext", a_text);
   ab_ui.handle_b.setAttribute("aria-valuetext", b_text);
+  if (ab_ui.time_a != null) ab_ui.time_a.textContent = a_text;
+  if (ab_ui.time_b != null) ab_ui.time_b.textContent = b_text;
 };
 
 /**
@@ -1831,9 +1922,34 @@ let reset_ab_points = () => {
   render_ab_points();
 };
 
-/** Keep the panel on top of the video, wherever the page decides to put it */
+/**
+ * The page's own progress bar, if we can find one. A timeline runs (nearly)
+ * the whole width of its video, which is what keeps us off volume sliders.
+ * @param {DOMRect} video_rect
+ */
+let find_ab_progress_bar = (video_rect) => {
+  if (video_rect.width === 0) return null;
+
+  for (let selector of AB_PROGRESS_BAR_SELECTORS) {
+    let widest = null;
+    let widest_width = 0;
+    for (let element of document.querySelectorAll(selector)) {
+      let rect = element.getBoundingClientRect();
+      if (rect.width < video_rect.width * 0.5) continue;
+      if (rect.right < video_rect.left || rect.left > video_rect.right) continue;
+      if (rect.width > widest_width) {
+        widest = element;
+        widest_width = rect.width;
+      }
+    }
+    if (widest != null) return widest;
+  }
+  return null;
+};
+
+/** Keep the fallback panel on top of the video, wherever the page puts it */
 let position_ab_panel = () => {
-  if (ab_ui == null || ab_video == null) return;
+  if (ab_ui == null || ab_ui.in_bar || ab_video == null) return;
   let rect = ab_video.getBoundingClientRect();
 
   let is_in_view =
@@ -1852,6 +1968,7 @@ let position_ab_panel = () => {
     4,
     Math.max(4, window.innerWidth - width - 4),
   );
+  let lowest = Math.max(8, window.innerHeight - 80);
 
   ab_ui.host.style.width = `${Math.round(width)}px`;
   ab_ui.host.style.left = `${Math.round(left)}px`;
@@ -1860,58 +1977,22 @@ let position_ab_panel = () => {
     // Floating inside the video, above whatever controls the page keeps there
     let bottom = window.innerHeight - rect.bottom + AB_PANEL_OFFSET;
     ab_ui.host.style.top = "auto";
-    ab_ui.host.style.bottom = `${Math.round(ab_clamp(bottom, 8, Math.max(8, window.innerHeight - 80)))}px`;
+    ab_ui.host.style.bottom = `${Math.round(ab_clamp(bottom, 8, lowest))}px`;
   } else {
     // Too small to cover up, so hang underneath it instead
     ab_ui.host.style.bottom = "auto";
-    ab_ui.host.style.top = `${Math.round(ab_clamp(rect.bottom + 8, 8, Math.max(8, window.innerHeight - 80)))}px`;
-  }
-};
-
-/** The whole point: jump back to A whenever the video runs past B */
-let enforce_ab_loop = () => {
-  if (ab_video == null || ab_dragging != null) return;
-  if (ab_video.paused || ab_video.seeking) return;
-  let time = ab_video.currentTime;
-  if (time >= ab_b || time < ab_a - AB_SEEK_SLACK) {
-    ab_video.currentTime = ab_a;
-  }
-};
-
-let ab_tick = () => {
-  ab_animation_frame = null;
-  if (!ab_repeat_enabled || ab_video == null || ab_ui == null) return;
-
-  // Pages throw their video element away without telling anyone
-  if (!ab_video.isConnected) {
-    attach_ab_video(find_ab_video());
-    return;
-  }
-
-  position_ab_panel();
-  enforce_ab_loop();
-
-  let duration = ab_video.duration;
-  if (isFinite(duration) && duration > 0) {
-    let played = (ab_video.currentTime / duration) * 100;
-    ab_ui.playhead.style.left = `${ab_clamp(played, 0, 100)}%`;
-  }
-
-  ab_animation_frame = requestAnimationFrame(ab_tick);
-};
-
-let start_ab_ticking = () => {
-  if (ab_animation_frame == null) {
-    ab_animation_frame = requestAnimationFrame(ab_tick);
+    ab_ui.host.style.top = `${Math.round(ab_clamp(rect.bottom + 8, 8, lowest))}px`;
   }
 };
 
 /**
- * Native fullscreen only paints what is inside the fullscreen element,
- * so the panel has to move in there along with it
+ * Native fullscreen only paints what is inside the fullscreen element, so the
+ * fallback panel has to move in there along with it. Points that live in the
+ * page's own progress bar are already inside the player, and come along by
+ * themselves.
  */
 let reparent_ab_panel = () => {
-  if (ab_ui == null) return;
+  if (ab_ui == null || ab_ui.in_bar) return;
   let fullscreen_element = fullscreenelement_aliasses
     .map((alias) => document[alias])
     .find((element) => element != null);
@@ -1926,15 +2007,32 @@ let reparent_ab_panel = () => {
   }
 };
 
-let create_ab_panel = () => {
-  if (ab_ui != null) return;
+let destroy_ab_ui = () => {
+  if (ab_ui == null) return;
+  // Put back the page's own styling if we had to lean on it
+  if (ab_ui.bar != null && ab_ui.bar_position_was != null) {
+    ab_ui.bar.style.position = ab_ui.bar_position_was;
+  }
+  ab_ui.host.remove();
+  ab_ui = null;
+};
+
+let create_ab_ui = () => {
+  if (ab_ui != null || ab_video == null) return;
+
+  let bar = find_ab_progress_bar(ab_video.getBoundingClientRect());
+  let in_bar = bar != null;
 
   let host = document.createElement("windowed-ab-repeat");
+  host.className = in_bar ? "in-bar" : "floating";
   let shadow = host.attachShadow({ mode: "open" });
-  shadow.innerHTML = `<style>${ab_panel_css}</style>${ab_panel_html}`;
+  shadow.innerHTML = `<style>${ab_ui_css}</style>${in_bar ? ab_track_html : ab_panel_html}`;
 
   ab_ui = {
     host: host,
+    in_bar: in_bar,
+    bar: bar,
+    bar_position_was: null,
     track: shadow.querySelector(".track"),
     range: shadow.querySelector(".range"),
     playhead: shadow.querySelector(".playhead"),
@@ -1956,18 +2054,27 @@ let create_ab_panel = () => {
   for (let which of ["a", "b"]) {
     let handle = which === "a" ? ab_ui.handle_a : ab_ui.handle_b;
 
+    // Sitting in the page's progress bar means every click we take is a click
+    // the player would otherwise have used to seek
+    for (let type of ["mousedown", "touchstart", "click"]) {
+      handle.addEventListener(type, (event) => event.stopPropagation());
+    }
+
     handle.addEventListener("pointerdown", (event) => {
       event.preventDefault();
+      event.stopPropagation();
       ab_dragging = which;
       handle.classList.add("dragging");
       handle.setPointerCapture(event.pointerId);
     });
     handle.addEventListener("pointermove", (event) => {
       if (ab_dragging !== which) return;
+      event.stopPropagation();
       set_ab_point(which, time_at_pointer(event), true);
     });
-    let stop_dragging = () => {
+    let stop_dragging = (event) => {
       if (ab_dragging !== which) return;
+      event.stopPropagation();
       ab_dragging = null;
       handle.classList.remove("dragging");
     };
@@ -1986,39 +2093,65 @@ let create_ab_panel = () => {
         return;
       }
       event.preventDefault();
+      event.stopPropagation();
     });
   }
 
-  // Clicking the track itself moves whichever point is closest
-  ab_ui.track.addEventListener("pointerdown", (event) => {
-    if (event.target !== ab_ui.track && event.target !== ab_ui.range) return;
-    let time = time_at_pointer(event);
-    set_ab_point(
-      Math.abs(time - ab_a) <= Math.abs(time - ab_b) ? "a" : "b",
-      time,
-      true,
-    );
-  });
-
-  shadow.querySelector(".set-a").addEventListener("click", () => {
-    if (ab_video != null) set_ab_point("a", ab_video.currentTime);
-  });
-  shadow.querySelector(".set-b").addEventListener("click", () => {
-    if (ab_video != null) set_ab_point("b", ab_video.currentTime);
-  });
-  shadow.querySelector(".reset").addEventListener("click", () => {
-    reset_ab_points();
-  });
-  shadow.querySelector(".close").addEventListener("click", () => {
-    set_ab_repeat_enabled(false);
-    // Untick the checkbox as well, so the popup can turn it back on
-    send_chrome_message({ type: "set_ab_repeat", value: false }).catch((err) => {
-      // prettier-ignore
-      console.warn(`[Windowed] Error while turning A-B repeat off`, err);
+  if (in_bar) {
+    // Our points are placed along the bar, so it has to be the thing they are
+    // placed against
+    if (getComputedStyle(bar).position === "static") {
+      ab_ui.bar_position_was = bar.style.position;
+      bar.style.position = "relative";
+    }
+    bar.appendChild(host);
+  } else {
+    // Clicking the track moves whichever point is closest. Only in the panel:
+    // on a real progress bar a click means seek, and it should keep meaning that
+    ab_ui.track.addEventListener("pointerdown", (event) => {
+      if (event.target !== ab_ui.track && event.target !== ab_ui.range) return;
+      let time = time_at_pointer(event);
+      set_ab_point(
+        Math.abs(time - ab_a) <= Math.abs(time - ab_b) ? "a" : "b",
+        time,
+        true,
+      );
     });
-  });
 
-  reparent_ab_panel();
+    shadow.querySelector(".set-a").addEventListener("click", () => {
+      if (ab_video != null) set_ab_point("a", ab_video.currentTime);
+    });
+    shadow.querySelector(".set-b").addEventListener("click", () => {
+      if (ab_video != null) set_ab_point("b", ab_video.currentTime);
+    });
+    shadow.querySelector(".reset").addEventListener("click", () => {
+      reset_ab_points();
+    });
+    shadow.querySelector(".close").addEventListener("click", () => {
+      set_ab_repeat_enabled(false);
+      // Untick the checkbox as well, so the popup can turn it back on
+      send_chrome_message({ type: "set_ab_repeat", value: false }).catch(
+        (err) => {
+          // prettier-ignore
+          console.warn(`[Windowed] Error while turning A-B repeat off`, err);
+        },
+      );
+    });
+
+    reparent_ab_panel();
+  }
+
+  render_ab_points();
+};
+
+/** The whole point: jump back to A whenever the video runs past B */
+let enforce_ab_loop = () => {
+  if (ab_video == null || ab_dragging != null) return;
+  if (ab_video.paused || ab_video.seeking) return;
+  let time = ab_video.currentTime;
+  if (time >= ab_b || time < ab_a - AB_SEEK_SLACK) {
+    ab_video.currentTime = ab_a;
+  }
 };
 
 /** Playing to the very end never "runs past B", so pick it up here instead */
@@ -2044,6 +2177,52 @@ let ab_on_duration_change = () => {
   ab_b = Math.min(ab_b, duration);
   ab_a = Math.min(ab_a, Math.max(0, ab_b - AB_MIN_LOOP));
   render_ab_points();
+};
+
+let ab_tick = () => {
+  ab_animation_frame = null;
+  if (!ab_repeat_enabled || ab_video == null) return;
+
+  // Pages throw their video element away without telling anyone
+  if (!ab_video.isConnected) {
+    attach_ab_video(find_ab_video());
+    return;
+  }
+
+  // ...and they re-render their controls out from under us just as happily
+  if (ab_ui == null || !ab_ui.host.isConnected) {
+    destroy_ab_ui();
+    create_ab_ui();
+  }
+
+  enforce_ab_loop();
+  position_ab_panel();
+
+  if (ab_ui != null && !ab_ui.in_bar) {
+    let duration = ab_video.duration;
+    if (isFinite(duration) && duration > 0) {
+      let played = (ab_video.currentTime / duration) * 100;
+      ab_ui.playhead.style.left = `${ab_clamp(played, 0, 100)}%`;
+    }
+
+    // The player may only have drawn its controls after we gave up looking
+    ab_frames_since_relook = ab_frames_since_relook + 1;
+    if (ab_frames_since_relook > AB_RELOOK_EVERY_FRAMES) {
+      ab_frames_since_relook = 0;
+      if (find_ab_progress_bar(ab_video.getBoundingClientRect()) != null) {
+        destroy_ab_ui();
+        create_ab_ui();
+      }
+    }
+  }
+
+  ab_animation_frame = requestAnimationFrame(ab_tick);
+};
+
+let start_ab_ticking = () => {
+  if (ab_animation_frame == null) {
+    ab_animation_frame = requestAnimationFrame(ab_tick);
+  }
 };
 
 /** @param {HTMLVideoElement} video */
@@ -2080,10 +2259,8 @@ let attach_ab_video = (video) => {
   }
 
   ab_video = video;
-  if (ab_video == null) {
-    if (ab_ui != null) ab_ui.host.style.display = "none";
-    return;
-  }
+  destroy_ab_ui();
+  if (ab_video == null) return;
 
   // `timeupdate` only fires a few times a second, but unlike animation frames
   // it keeps firing while the tab is in the background
@@ -2092,8 +2269,7 @@ let attach_ab_video = (video) => {
   ab_video.addEventListener("loadedmetadata", ab_on_loaded_metadata);
   ab_video.addEventListener("durationchange", ab_on_duration_change);
 
-  create_ab_panel();
-  reparent_ab_panel();
+  create_ab_ui();
   reset_ab_points();
   position_ab_panel();
   start_ab_ticking();
@@ -2131,10 +2307,7 @@ let set_ab_repeat_enabled = (enabled) => {
     attach_ab_video(null);
     if (ab_animation_frame != null) cancelAnimationFrame(ab_animation_frame);
     ab_animation_frame = null;
-    if (ab_ui != null) {
-      ab_ui.host.remove();
-      ab_ui = null;
-    }
+    destroy_ab_ui();
   }
 };
 
