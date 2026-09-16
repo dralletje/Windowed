@@ -1568,6 +1568,15 @@ const AB_PANEL_MIN_VIDEO_HEIGHT = 160;
 const AB_ACCENT_COLOR = "#00e5ff";
 /** Roughly every half second, look again for a progress bar to move into */
 const AB_RELOOK_EVERY_FRAMES = 30;
+/** Mouse moves land here constantly, so make sure they cost as little as possible */
+const AB_QUIETLY = { passive: true, capture: true };
+/** Roughly ten times a second, check whether we should still be on screen */
+const AB_VISIBILITY_EVERY_FRAMES = 6;
+/**
+ * How long the mouse has to sit still before the points fade out with the
+ * rest of the controls. Same three seconds the players themselves use.
+ */
+const AB_AUTOHIDE_AFTER = 3 * 1000;
 /**
  * In order: Youtube's classic player, the newer one (`ytPlayerProgressBarProgressBar`
  * and friends), the newer one again when the video has chapters, and finally
@@ -1591,7 +1600,8 @@ let ab_b = 0;
 /** @type {"a" | "b"} Which point is being dragged right now, if any */
 let ab_dragging = null;
 let ab_animation_frame = null;
-let ab_frames_since_relook = 0;
+let ab_frame_count = 0;
+let ab_last_pointer_activity = 0;
 
 /**
  * @param {number} value
@@ -1625,6 +1635,14 @@ let ab_ui_css = css`
     font-size: 12px;
     line-height: 1;
     color: white;
+    transition: opacity 0.2s;
+  }
+  /* Nothing to see while the player has put its own controls away */
+  :host(.idle) {
+    opacity: 0;
+  }
+  :host(.idle) .handle {
+    pointer-events: none;
   }
 
   /* Sitting in the page's own progress bar: a zero height line across it,
@@ -2179,6 +2197,39 @@ let ab_on_duration_change = () => {
   render_ab_points();
 };
 
+let note_ab_pointer_activity = () => {
+  ab_last_pointer_activity = Date.now();
+};
+
+/** The pointer left the page altogether, which puts the controls away at once */
+let note_ab_pointer_left = () => {
+  ab_last_pointer_activity = 0;
+};
+
+/**
+ * Players don't all put their controls away the same way, and some of them
+ * leave a sliver of the progress bar behind, so go by both: whether the bar
+ * we are sitting in is still being painted at all, and whether the mouse has
+ * gone quiet for long enough that the controls will have gone with it.
+ */
+let update_ab_ui_visibility = () => {
+  if (ab_ui == null) return;
+
+  let bar = ab_ui.bar;
+  let is_bar_painted =
+    bar == null ||
+    bar.checkVisibility == null ||
+    bar.checkVisibility({ opacityProperty: true, visibilityProperty: true });
+
+  let is_idle =
+    ab_dragging == null &&
+    ab_video != null &&
+    !ab_video.paused &&
+    Date.now() - ab_last_pointer_activity > AB_AUTOHIDE_AFTER;
+
+  ab_ui.host.classList.toggle("idle", is_idle || !is_bar_painted);
+};
+
 let ab_tick = () => {
   ab_animation_frame = null;
   if (!ab_repeat_enabled || ab_video == null) return;
@@ -2198,6 +2249,11 @@ let ab_tick = () => {
   enforce_ab_loop();
   position_ab_panel();
 
+  ab_frame_count = ab_frame_count + 1;
+  if (ab_frame_count % AB_VISIBILITY_EVERY_FRAMES === 0) {
+    update_ab_ui_visibility();
+  }
+
   if (ab_ui != null && !ab_ui.in_bar) {
     let duration = ab_video.duration;
     if (isFinite(duration) && duration > 0) {
@@ -2206,9 +2262,7 @@ let ab_tick = () => {
     }
 
     // The player may only have drawn its controls after we gave up looking
-    ab_frames_since_relook = ab_frames_since_relook + 1;
-    if (ab_frames_since_relook > AB_RELOOK_EVERY_FRAMES) {
-      ab_frames_since_relook = 0;
+    if (ab_frame_count % AB_RELOOK_EVERY_FRAMES === 0) {
       if (find_ab_progress_bar(ab_video.getBoundingClientRect()) != null) {
         destroy_ab_ui();
         create_ab_ui();
@@ -2294,6 +2348,11 @@ let set_ab_repeat_enabled = (enabled) => {
     // Neither of these bubbles, so we catch them on the way down instead
     document.addEventListener("play", ab_on_media_event, true);
     document.addEventListener("loadedmetadata", ab_on_media_event, true);
+    note_ab_pointer_activity();
+    for (let type of ["pointermove", "pointerdown", "wheel", "keydown"]) {
+      document.addEventListener(type, note_ab_pointer_activity, AB_QUIETLY);
+    }
+    document.documentElement.addEventListener("mouseleave", note_ab_pointer_left);
     for (let alias of fullscreenchange_aliasses) {
       document.addEventListener(alias, reparent_ab_panel);
     }
@@ -2301,6 +2360,13 @@ let set_ab_repeat_enabled = (enabled) => {
   } else {
     document.removeEventListener("play", ab_on_media_event, true);
     document.removeEventListener("loadedmetadata", ab_on_media_event, true);
+    for (let type of ["pointermove", "pointerdown", "wheel", "keydown"]) {
+      document.removeEventListener(type, note_ab_pointer_activity, AB_QUIETLY);
+    }
+    document.documentElement.removeEventListener(
+      "mouseleave",
+      note_ab_pointer_left,
+    );
     for (let alias of fullscreenchange_aliasses) {
       document.removeEventListener(alias, reparent_ab_panel);
     }
