@@ -33,6 +33,11 @@
       "js": ["Windowed-inject-into-page.js"],
       "all_frames": true,
       "world": "MAIN"
+    },
+    {
+      "run_at": "document_start",
+      "matches": ["*://*.google.com/search*"],
+      "js": ["Google-search-cloak.js"]
     }
   ],
   "background": {
