@@ -150,6 +150,7 @@ let disable_selector = (element, key) => {
  * @returns {Promise<{
  *  mode: import("./Background/BackgroundModule").WindowedMode,
  *  pip: boolean,
+ *  options: string[],
  * }>}
  */
 let get_host_config_local = async () => {
@@ -326,9 +327,18 @@ const code_to_insert_in_page = on_webpage`{
         ? video_element
         : null;
 
-    let { mode, pip } = is_shift_pressed
+    let { mode, pip, options } = is_shift_pressed
       ? /// Force the mode to be "ask" when shift is pressed
-        { mode: "ask", pip: false }
+        {
+          mode: "ask",
+          pip: false,
+          options: [
+            "windowed",
+            "in-window",
+            "fullscreen",
+            "picture-in-picture",
+          ],
+        }
       : await get_host_config_local();
     if (pip === true && video_element != null) {
       video_element.requestPictureInPicture();
@@ -507,6 +517,14 @@ const code_to_insert_in_page = on_webpage`{
       shadowRoot.appendChild(popup);
     }
 
+    // Only keep the buttons the user ticked in the popup (Multiple)
+    for (let button of shadowRoot.querySelectorAll("[data-target]")) {
+      // @ts-ignore
+      if (!options.includes(button.dataset.target)) {
+        button.closest("li").remove();
+      }
+    }
+
     /** @type {HTMLElement} */
     let popup_element = shadowRoot.querySelector(`.popup`);
     setTimeout(() => {
@@ -529,15 +547,24 @@ const code_to_insert_in_page = on_webpage`{
       popup_element.addEventListener(
         "keydown",
         (/** @type {KeyboardEvent} */ event) => {
-          if (event.key === "w" || event.key === "W") {
+          if (
+            (event.key === "w" || event.key === "W") &&
+            options.includes("windowed")
+          ) {
             event.stopPropagation();
             resolve("windowed");
           }
-          if (event.key === "i" || event.key === "I") {
+          if (
+            (event.key === "i" || event.key === "I") &&
+            options.includes("in-window")
+          ) {
             event.stopPropagation();
             resolve("in-window");
           }
-          if (event.key === "f" || event.key === "F") {
+          if (
+            (event.key === "f" || event.key === "F") &&
+            options.includes("fullscreen")
+          ) {
             event.stopPropagation();
 
             // I need this check here, because I can't call the original fullscreen from a
@@ -548,7 +575,10 @@ const code_to_insert_in_page = on_webpage`{
 
             resolve("fullscreen");
           }
-          if (event.key === "p" || event.key === "P") {
+          if (
+            (event.key === "p" || event.key === "P") &&
+            options.includes("picture-in-picture")
+          ) {
             event.stopPropagation();
             resolve("picture-in-picture");
           }

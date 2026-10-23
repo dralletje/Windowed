@@ -158,7 +158,8 @@
         display: none;
       }
       .picture-in-picture-support hide-if-no-picture-in-picture {
-        all: inherit;
+        /* all: inherit; */
+        display: contents;
       }
 
       body[data-mode-selected="true"] hide-if-ask {
@@ -231,6 +232,31 @@
           color: var(--theme-popup_highlight_text);
         }
       }
+
+      #layout-switch {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+
+        margin-top: 4px;
+        margin-bottom: 4px;
+
+        & > label {
+          margin-right: 4px;
+          margin-left: 8px;
+        }
+      }
+
+      .layout-options {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        border-top: solid 1px #999 !important;
+      }
+
+      .layout-options[hidden] {
+        display: none;
+      }
     </style>
   </head>
   <body>
@@ -257,53 +283,108 @@
         <div style="height: 4px"></div>
 
         <form>
-          <label data-target="ask" title="Ask">
-            <input type="radio" name="behaviour" value="ask" checked />
-            <div class="icon"></div>
-            <span>Ask</span>
-          </label>
-          <label data-target="windowed" title="Windowed">
-            <input type="radio" name="behaviour" value="windowed" />
-            <div
-              class="icon mask-icon"
-              data-dynamic-mask-image="../Images/Icon_Windowed_Mono@scalable.svg"
-            ></div>
-            <span>Windowed</span>
-          </label>
-          <label data-target="in-window" title="In-window">
-            <input type="radio" name="behaviour" value="in-window" />
-            <div
-              class="icon mask-icon"
-              data-dynamic-mask-image="../Images/Icon_InWindow_Mono@scalable.svg"
-            ></div>
-            <span>In-window</span>
-          </label>
-          <label data-target="fullscreen" title="Fullscreen">
-            <input type="radio" name="behaviour" value="fullscreen" />
-            <div
-              class="icon mask-icon"
-              data-dynamic-mask-image="../Images/Icon_EnterFullscreen@scalable.svg"
-            ></div>
-            <span>Fullscreen</span>
-          </label>
+          <div id="layout-switch">
+            <label>
+              Single<input type="radio" name="layout" value="single" checked
+            /></label>
+            <label>
+              Multiple<input type="radio" name="layout" value="multiple"
+            /></label>
+          </div>
 
-          <hide-if-no-picture-in-picture>
-            <div style="height: 8px"></div>
-            <label
-              data-target="picture-in-picture"
-              title="Picture-in-Picture mode, only if supported by the page. This will overwrite the preference above (even ask)"
-            >
-              <input type="checkbox" name="picture_in_picture" />
-              <!--<img src="../Images/Icon_PiP@scalable.svg" />-->
+          <div id="single-options" class="layout-options">
+            <label data-target="windowed" title="Windowed">
+              <input type="radio" name="behaviour" value="windowed" />
               <div
-                style="
-                  background-color: currentColor;
-                  mask-image: url(&quot;../Images/Icon_PiP@scalable.svg&quot;);
-                "
+                class="icon mask-icon"
+                data-dynamic-mask-image="../Images/Icon_Windowed_Mono@scalable.svg"
               ></div>
-              <span>PiP (if possible)</span>
+              <span>Windowed</span>
             </label>
-          </hide-if-no-picture-in-picture>
+            <label data-target="in-window" title="In-window">
+              <input type="radio" name="behaviour" value="in-window" checked />
+              <div
+                class="icon mask-icon"
+                data-dynamic-mask-image="../Images/Icon_InWindow_Mono@scalable.svg"
+              ></div>
+              <span>In-window</span>
+            </label>
+            <label data-target="fullscreen" title="Fullscreen">
+              <input type="radio" name="behaviour" value="fullscreen" />
+              <div
+                class="icon mask-icon"
+                data-dynamic-mask-image="../Images/Icon_EnterFullscreen@scalable.svg"
+              ></div>
+              <span>Fullscreen</span>
+            </label>
+
+            <hide-if-no-picture-in-picture>
+              <div style="height: 8px"></div>
+              <label
+                data-target="picture-in-picture"
+                title="Picture-in-Picture mode, only if supported by the page. This will overwrite the preference above (even ask)"
+              >
+                <input type="checkbox" name="picture_in_picture" />
+                <!--<img src="../Images/Icon_PiP@scalable.svg" />-->
+                <div
+                  style="
+                    background-color: currentColor;
+                    mask-image: url(&quot;../Images/Icon_PiP@scalable.svg&quot;);
+                  "
+                ></div>
+                <span>PiP (if possible)</span>
+              </label>
+            </hide-if-no-picture-in-picture>
+          </div>
+
+          <div id="multiple-options" class="layout-options" hidden>
+            <label data-target="windowed" title="Windowed">
+              <input type="checkbox" name="option" value="windowed" checked />
+              <div
+                class="icon mask-icon"
+                data-dynamic-mask-image="../Images/Icon_Windowed_Mono@scalable.svg"
+              ></div>
+              <span>Windowed</span>
+            </label>
+            <label data-target="in-window" title="In-window">
+              <input type="checkbox" name="option" value="in-window" checked />
+              <div
+                class="icon mask-icon"
+                data-dynamic-mask-image="../Images/Icon_InWindow_Mono@scalable.svg"
+              ></div>
+              <span>In-window</span>
+            </label>
+            <label data-target="fullscreen" title="Fullscreen">
+              <input type="checkbox" name="option" value="fullscreen" checked />
+              <div
+                class="icon mask-icon"
+                data-dynamic-mask-image="../Images/Icon_EnterFullscreen@scalable.svg"
+              ></div>
+              <span>Fullscreen</span>
+            </label>
+
+            <hide-if-no-picture-in-picture>
+              <label
+                data-target="picture-in-picture"
+                title="Picture-in-Picture mode"
+              >
+                <input
+                  type="checkbox"
+                  name="option"
+                  value="picture-in-picture"
+                  checked
+                />
+                <!--<img src="../Images/Icon_PiP@scalable.svg" />-->
+                <div
+                  style="
+                    background-color: currentColor;
+                    mask-image: url(&quot;../Images/Icon_PiP@scalable.svg&quot;);
+                  "
+                ></div>
+                <span>PiP</span>
+              </label>
+            </hide-if-no-picture-in-picture>
+          </div>
 
           <button id="set-as-default" disabled style="margin-top: 8px">
             <div>Set as default</div>

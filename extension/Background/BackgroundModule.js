@@ -88,6 +88,26 @@ const get_fallback_window = async (windowId) => {
   }
 };
 
+let ALL_OPTIONS = "options(*)";
+let KNOWN_OPTIONS = [
+  "windowed",
+  "in-window",
+  "fullscreen",
+  "picture-in-picture",
+];
+
+/**
+ * @param {unknown} options
+ * @returns {string[]}
+ */
+let clean_options = (options) => {
+  if (!Array.isArray(options)) {
+    return [...KNOWN_OPTIONS];
+  }
+  let cleaned = options.filter((v) => KNOWN_OPTIONS.includes(v));
+  return [...(cleaned.length > 0 ? cleaned : KNOWN_OPTIONS)];
+};
+
 // TODO Instead of using this static height, I can maybe "ping" the page I'm popup-izing
 // after it is done becoming a popup: then it can figure out it's position itself
 // (and check the size of it's current header itself)
@@ -119,27 +139,34 @@ let get_host_config = async (tab) => {
   let host = new URL(tab.url).host;
   let host_mode = `mode(${host})`;
   let host_pip = `pip(${host})`;
+  let host_options = `options(${host})`;
   let {
     [host_mode]: mode,
     [host]: disabled,
     [host_pip]: pip,
+    [host_options]: options,
     [ALL_MODE]: all_mode,
     [ALL_PIP]: all_pip,
+    [ALL_OPTIONS]: all_options,
   } = /** @type {any} */ (
     await browser.storage.sync.get([
       host_mode,
       host,
       host_pip,
+      host_options,
       ALL_MODE,
       ALL_PIP,
+      ALL_OPTIONS,
     ])
   ) ?? {};
 
   return {
     mode: clean_mode(mode ?? all_mode, disabled),
     pip: (pip ?? all_pip) === true,
+    options: clean_options(options ?? all_options),
     all_mode: clean_mode(all_mode, false),
     all_pip: all_pip === true,
+    all_options: clean_options(all_options),
   };
 };
 

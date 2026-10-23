@@ -53,6 +53,26 @@ let send_chrome_message = async (message) => {
   }
 };
 
+let ALL_OPTIONS = "options(*)";
+let KNOWN_OPTIONS = [
+  "windowed",
+  "in-window",
+  "fullscreen",
+  "picture-in-picture",
+];
+
+/**
+ * @param {unknown} options
+ * @returns {string[]}
+ */
+let clean_options = (options) => {
+  if (!Array.isArray(options)) {
+    return [...KNOWN_OPTIONS];
+  }
+  let cleaned = options.filter((v) => KNOWN_OPTIONS.includes(v));
+  return [...(cleaned.length > 0 ? cleaned : KNOWN_OPTIONS)];
+};
+
 let ALL_MODE = "mode(*)";
 let ALL_PIP = "pip(*)";
 
@@ -73,25 +93,32 @@ let get_host_config = async (tab) => {
   let host = new URL(tab.url).host;
   let host_mode = `mode(${host})`;
   let host_pip = `pip(${host})`;
+  let host_options = `options(${host})`;
   let {
     [host_mode]: mode,
     [host]: disabled,
     [host_pip]: pip,
+    [host_options]: options,
     [ALL_MODE]: all_mode,
     [ALL_PIP]: all_pip,
+    [ALL_OPTIONS]: all_options,
   } = await browser.storage.sync.get([
     host_mode,
     host,
     host_pip,
+    host_options,
     ALL_MODE,
     ALL_PIP,
+    ALL_OPTIONS,
   ]);
 
   return {
     mode: clean_mode(mode ?? all_mode, disabled),
     pip: (pip ?? all_pip) === true,
+    options: clean_options(options ?? all_options),
     all_mode: clean_mode(all_mode, false),
     all_pip: all_pip === true,
+    all_options: clean_options(all_options),
   };
 };
 
@@ -168,6 +195,7 @@ let initialize_page = async () => {
   let host = new URL(tab.url).host;
   let host_mode = `mode(${host})`;
   let host_pip = `pip(${host})`;
+  let host_options = `options(${host})`;
   for (let element of document.querySelectorAll("[data-placeholder=domain]")) {
     element.textContent = host;
   }
@@ -181,20 +209,63 @@ let initialize_page = async () => {
   // @ts-ignore
   let picture_in_picture_input = $form.elements.picture_in_picture;
 
+  // @ts-ignore
+  let layout_input = $form.elements.layout;
+  /** @type {NodeListOf<HTMLInputElement>} */
+  let option_inputs = $form.querySelectorAll('input[name="option"]');
+  /** @type {HTMLElement} */
+  let $single_options = $root.querySelector("#single-options");
+  /** @type {HTMLElement} */
+  let $multiple_options = $root.querySelector("#multiple-options");
+
+  /** @param {string} layout */
+  let show_layout = (layout) => {
+    $single_options.hidden = layout !== "single";
+    $multiple_options.hidden = layout !== "multiple";
+  };
+
+  let read_form = () => {
+    let is_multiple = layout_input.value === "multiple";
+    return {
+      mode: is_multiple ? "ask" : behaviour_input.value || "in-window",
+      pip: !is_multiple && picture_in_picture_input.checked,
+      options: [...option_inputs]
+        .filter((input) => input.checked)
+        .map((input) => input.value),
+    };
+  };
+
   let config = await get_host_config(tab);
 
   document.body.setAttribute("data-mode-selected", config.mode);
-  $set_as_default_button.disabled =
-    behaviour_input.value === config.all_mode &&
-    picture_in_picture_input.checked === config.all_pip;
+
+  let update_default_button = () => {
+    $set_as_default_button.disabled =
+      config.mode === config.all_mode &&
+      config.pip === config.all_pip &&
+      config.options.join() === config.all_options.join();
+  };
+  update_default_button();
 
   $form.addEventListener("input", async (e) => {
+    let { mode, pip, options } = read_form();
+    if (options.length === 0) {
+      // @ts-ignore
+      e.target.checked = true;
+      return;
+    }
+
     await browser.storage.sync.set({
-      [host_mode]: behaviour_input.value,
-      [host_pip]: picture_in_picture_input.checked,
+      [host_mode]: mode,
+      [host_pip]: pip,
+      [host_options]: options,
     });
 
-    initialize_page();
+    behaviour_input.value = mode;
+    show_layout(layout_input.value);
+    config = await get_host_config(tab);
+    update_default_button();
+
     send_chrome_message({
       type: "update_windowed_button",
       id: tab.id,
@@ -202,19 +273,33 @@ let initialize_page = async () => {
   });
 
   $set_as_default_button.addEventListener("click", async (e) => {
+    let { mode, pip, options } = read_form();
+
     await browser.storage.sync.set({
-      [ALL_MODE]: behaviour_input.value,
-      [ALL_PIP]: picture_in_picture_input.checked,
+      [ALL_MODE]: mode,
+      [ALL_PIP]: pip,
+      [ALL_OPTIONS]: options,
     });
+
     config = await get_host_config(tab);
-    await send_chrome_message({
+    update_default_button();
+
+    send_chrome_message({
       type: "update_windowed_button",
       id: tab.id,
     });
   });
 
+  let layout = config.mode === "ask" ? "multiple" : "single";
+  layout_input.value = layout;
+  show_layout(layout);
+
   behaviour_input.value = config.mode;
   picture_in_picture_input.checked = config.pip;
+
+  for (let input of option_inputs) {
+    input.checked = config.options.includes(input.value);
+  }
 };
 
 run(initialize_page);
